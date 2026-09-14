@@ -71,8 +71,8 @@ static bool g_ble_config_ok = false;
 static BLEState g_state = BLE_IDLE;
 static uint16_t g_conn_handle = 0xFFFF;
 static bool g_connected = false;
-static uint16_t g_auth_ctrl_handle = 0, g_auth_data_handle = 0, g_cmd_send_handle = 0, g_cmd_recv_handle = 0;
-static QueueHandle_t g_q_auth_ctrl = NULL, g_q_auth_data = NULL, g_q_cmd_send = NULL, g_q_cmd_recv = NULL;
+static uint16_t g_auth_ctrl_handle = 0, g_auth_data_handle = 0, g_cmd_send_handle = 0, g_cmd_recv_handle = 0, g_ver_read_handle = 0;
+static QueueHandle_t g_q_auth_ctrl = NULL, g_q_auth_data = NULL, g_q_cmd_send = NULL, g_q_cmd_recv = NULL, g_q_ver_read = NULL;
 static SessionKeys g_keys = {};
 static uint32_t g_send_it = 0;
 static uint8_t g_seq = 1;
@@ -89,11 +89,12 @@ static SemaphoreHandle_t g_disc_sem = NULL, g_connected_sem = NULL, g_disconnect
 static uint16_t g_disc_service_start = 0, g_disc_service_end = 0;
 static uint8_t g_target_addr[6] = {}, g_token[12] = {};
 static char g_mac_str[18] = {};
+static char g_ver_str[20] = {};
 static volatile bool g_nimble_ready = false;  /* written by NimBLE host task, read by ble_task */
 static volatile bool g_enabled = true;
 
 typedef struct { uint16_t uuid; uint16_t *handle; const char *name; } CharCtx;
-static CharCtx g_char_ctx[4];
+static CharCtx g_char_ctx[5];
 static int g_char_ctx_n = 0;
 
 static bool g_setings_dirty = false;
@@ -116,7 +117,7 @@ __attribute__((unused)) static void log_hex(const char *prefix, const uint8_t *b
     snprintf(&hex[i * 3], 4, "%02x ", buf[i]);
   }
   hex[to_print > 0 ? (to_print * 3 - 1) : 0] = '\0';
-  ESP_LOGD(TAG, "%s len=%u: %s%s", prefix, (unsigned) len, hex, len > 64 ? " …" : "");
+  ESP_LOGV(TAG, "%s len=%u: %s%s", prefix, (unsigned) len, hex, len > 64 ? " …" : "");
 }
 
 /* ============================================================
@@ -236,6 +237,7 @@ static void do_dispatch_notif(uint16_t attr_handle, const uint8_t *data, size_t 
   else if (attr_handle == g_auth_data_handle) q = g_q_auth_data;
   else if (attr_handle == g_cmd_send_handle)  q = g_q_cmd_send;
   else if (attr_handle == g_cmd_recv_handle)  q = g_q_cmd_recv;
+  else if (attr_handle == g_ver_read_handle)  q = g_q_ver_read;
 
   if (q) {
     if (xQueueSend(q, &item, 0) != pdTRUE) {
@@ -272,13 +274,32 @@ static void do_drain_all_queues(void) {
 }
 
 /* ============================================================
- * BLE write helpers
+ * BLE read/write helpers
  * ============================================================ */
 static bool on_wru_nr(uint16_t handle, const uint8_t *data, size_t len) {
   if (!g_connected || handle == 0) return false;
   struct os_mbuf *om = ble_hs_mbuf_from_flat(data, len);
   if (!om) return false;
   return ble_gattc_write_no_rsp(g_conn_handle, handle, om) == 0;
+}
+
+static int on_read_cb(uint16_t conn_handle,
+                       const struct ble_gatt_error *error,
+                       struct ble_gatt_attr *attr,
+                       void *arg) {
+  uint8_t *buf = (uint8_t *)arg;
+
+  ESP_LOGV(TAG, "Read complete for the sub char; "
+                "s=%d h=%d, len=%d", error->status, conn_handle, attr->om->om_len);
+  log_hex(TAG, attr->om->om_data, attr->om->om_len);
+  memcpy(buf, attr->om->om_data, attr->om->om_len);
+
+  return 0;
+}
+
+static bool on_rdu_rsp(uint16_t handle, const uint8_t *data, size_t len, uint8_t *buf) {
+  if (!g_connected || handle == 0) return false;
+  return ble_gattc_read(g_conn_handle, handle, on_read_cb, buf) == 0;
 }
 
 static SemaphoreHandle_t g_op_sem = NULL;
@@ -330,7 +351,7 @@ static int do_disc_chr_cb(uint16_t conn_handle, const struct ble_gatt_error *err
 static void do_disable_all_notifications(void) {
   if (!g_connected) return;
   uint8_t val[] = {0x00, 0x00};
-  uint16_t handles[] = {g_auth_ctrl_handle, g_auth_data_handle, g_cmd_send_handle, g_cmd_recv_handle};
+  uint16_t handles[] = {g_auth_ctrl_handle, g_auth_data_handle, g_cmd_send_handle, g_cmd_recv_handle, g_ver_read_handle};
   for (int i = 0; i < 4; i++) { if (handles[i]) { on_wru_nr(handles[i] + 1, val, 2); vTaskDelay(pdMS_TO_TICKS(30)); } }
   vTaskDelay(pdMS_TO_TICKS(100));
 }
@@ -821,7 +842,8 @@ static void start_discover(void) {
   g_char_ctx[1] = (CharCtx){CHAR_UUID_AUTH_DATA, &g_auth_data_handle, "auth_data"};
   g_char_ctx[2] = (CharCtx){CHAR_UUID_CMD_SEND,  &g_cmd_send_handle,  "cmd_send"};
   g_char_ctx[3] = (CharCtx){CHAR_UUID_CMD_RECV,  &g_cmd_recv_handle,  "cmd_recv"};
-  g_char_ctx_n = 4;
+  g_char_ctx[4] = (CharCtx){CHAR_UUID_VERSION_RD,&g_ver_read_handle,  "ver_read"};
+  g_char_ctx_n = 5;
   xSemaphoreTake(g_disc_sem, 0);
   ble_gattc_disc_all_chrs(g_conn_handle, g_disc_service_start, g_disc_service_end, do_disc_chr_cb, NULL);
   if (xSemaphoreTake(g_disc_sem, pdMS_TO_TICKS(3600)) != pdTRUE) ESP_LOGW(TAG, "Char disc timeout");
@@ -831,6 +853,7 @@ static void start_discover(void) {
   if (g_auth_data_handle) { uint8_t v[] = {0x01,0x00}; on_wru(g_auth_data_handle+1, v, 2); vTaskDelay(pdMS_TO_TICKS(100)); }
   if (g_cmd_send_handle)  { uint8_t v[] = {0x01,0x00}; on_wru(g_cmd_send_handle+1,  v, 2); vTaskDelay(pdMS_TO_TICKS(100)); }
   if (g_cmd_recv_handle)  { uint8_t v[] = {0x01,0x00}; on_wru(g_cmd_recv_handle+1,  v, 2); vTaskDelay(pdMS_TO_TICKS(100)); }
+  if (g_ver_read_handle)  { uint8_t v[] = {0x01,0x00}; on_wru(g_ver_read_handle+1,  v, 2); vTaskDelay(pdMS_TO_TICKS(100)); }
   vTaskDelay(pdMS_TO_TICKS(500));
 
   if (g_auth_ctrl_handle && g_auth_data_handle) {
@@ -846,6 +869,9 @@ static void start_discover(void) {
     g_ra_ts = esp_timer_get_time() / 1000;
     ESP_LOGE(TAG, "Missing auth handles"); do_set_state(BLE_RECONNECT);
   }
+
+  // read version
+  on_rdu_rsp(g_ver_read_handle, (uint8_t[]){0x0, 0, 0, 0}, 4, (uint8_t *)g_ver_str);
 }
 
 static void start_reconnect(void) {
@@ -871,6 +897,7 @@ static void start_keepalive(void) {
 }
 
 static void start_disconnect(void) {
+  ble_gap_disc_cancel();
   /* Non-reentrant guard: prevent overlapping disconnect sequences */
   static bool _disconnecting = false;
   if (_disconnecting) { do_drain_all_queues(); return; }
@@ -1164,6 +1191,7 @@ void CuktechBle::setup() {
   g_q_auth_data = xQueueCreate(NOTIF_QUEUE_LEN_AUTH, sizeof(NotifItem));
   g_q_cmd_send  = xQueueCreate(NOTIF_QUEUE_LEN, sizeof(NotifItem));
   g_q_cmd_recv  = xQueueCreate(NOTIF_QUEUE_LEN, sizeof(NotifItem));
+  g_q_ver_read  = xQueueCreate(NOTIF_QUEUE_LEN, sizeof(NotifItem));
   g_op_sem = xSemaphoreCreateBinary();
   g_connected_sem = xSemaphoreCreateBinary();
   g_disc_sem = xSemaphoreCreateBinary();
@@ -1243,7 +1271,7 @@ void CuktechBle::publish_settings_(void) {
       this->scene_mode_select_->publish_state(g_settings[5] - 1);
     }
     if (this->screen_saver_timeout_select_) {
-      this->screen_saver_timeout_select_->publish_state(g_settings[6]);
+      this->screen_saver_timeout_select_->publish_state(g_settings[6] - 1);
     }
     if (this->c1_countdown_number_) {
       this->c1_countdown_number_->publish_state(g_settings[9]);
@@ -1371,7 +1399,11 @@ void CuktechBle::publish_portdata_() {
     if (this->a_voltage_sensor_) {
       this->a_voltage_sensor_->publish_state(g_ports[3].voltage);
     }
+    if (this->version_text_sensor_) {
+      this->version_text_sensor_->publish_state(g_ver_str);
+    }
   }
+
   if (this->c1_protocol_text_sensor_) {
     const char *proto = g_ports[0].active ? get_proto_name(g_ports[0].protocol) : "idle";
     this->c1_protocol_text_sensor_->publish_state(proto);
@@ -1609,7 +1641,7 @@ void CuktechBle::set_screen_saver_timeout(const char *state) {
     value = 1;
   else if (!strcmp(state, "5 Min"))
     value = 0;
-  handle_setting_set(6, (uint16_t)value);
+  handle_setting_set(6, (uint16_t)value + 1);
 }
 
 }  // namespace cuktech_ble

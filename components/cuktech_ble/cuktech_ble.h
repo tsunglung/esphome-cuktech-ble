@@ -192,6 +192,7 @@ class CuktechBle : public Component {
 #endif
 
 #ifdef USE_TEXT_SENSOR
+  SUB_TEXT_SENSOR(version)
   SUB_TEXT_SENSOR(c1_protocol)
   SUB_TEXT_SENSOR(c2_protocol)
   SUB_TEXT_SENSOR(c3_protocol)

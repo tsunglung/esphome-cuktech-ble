@@ -3,7 +3,9 @@ import esphome.codegen as cg
 import esphome.config_validation as cv
 from esphome.components import text_sensor
 from esphome.const import (
+    CONF_VERSION,
     ENTITY_CATEGORY_DIAGNOSTIC,
+    ICON_NEW_BOX
 )
 
 from . import CONF_CUKTECH_BLE_ID, CuktechBle
@@ -19,6 +21,10 @@ ICON_USB_PORT = "mdi:usb-port"
 CONFIG_SCHEMA = cv.Schema(
     {
         cv.GenerateID(CONF_CUKTECH_BLE_ID): cv.use_id(CuktechBle),
+        cv.Optional(CONF_VERSION): text_sensor.text_sensor_schema(
+            entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
+            icon="mdi:new-box"
+        ),
         cv.Optional(CONF_C1_PROTOCOL): text_sensor.text_sensor_schema(
             entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
             icon=ICON_USB_C_PORT
@@ -39,6 +45,7 @@ CONFIG_SCHEMA = cv.Schema(
 )
 
 _SENSORS = {
+    CONF_VERSION: "set_version_text_sensor",
     CONF_C1_PROTOCOL: "set_c1_protocol_text_sensor",
     CONF_C2_PROTOCOL: "set_c2_protocol_text_sensor",
     CONF_C3_PROTOCOL: "set_c3_protocol_text_sensor",

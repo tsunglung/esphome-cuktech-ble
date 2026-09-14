@@ -10,7 +10,7 @@ esphome:
   project:
     name: "Cuktech.njcuk_fitting_ad1204"
     version: "1.1.0"
-    name_add_mac_suffix: true
+  name_add_mac_suffix: true
   on_boot:
     - priority: 500
       then:
@@ -52,7 +52,7 @@ esp32:
 
 external_components:
   - source: github://tsunglung/esphome-cuktech-ble@main
-    components: [ taixia ]
+    components: [ cuktech_ble ]
 
 wifi:
   ssid: !secret wifi_ssid
@@ -108,6 +108,16 @@ button:
   - platform: cuktech_ble
     factory_reset:
       name: "Factory Reset"
+
+light:
+  - platform: esp32_rmt_led_strip
+    chipset: WS2812
+    pin: ${led_pin}
+    channel_colors: "RGB"
+    num_leds: 1
+    id: led
+    restore_mode: RESTORE_DEFAULT_OFF
+    name: "RGB LEDs"
 
 number:
   - platform: cuktech_ble

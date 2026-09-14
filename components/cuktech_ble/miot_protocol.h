@@ -12,6 +12,8 @@
 #define MIOT_SERVICE_UUID    "0000fe95-0000-1000-8000-00805f9b34fb"
 
 // --- Characteristics UUID ---
+// 4, 5, 10, 19, 17, 18, 1A, 1B, 1C
+#define CHAR_UUID_VERSION_RD 0x0004
 #define CHAR_UUID_AUTH_CTRL  0x0010
 #define CHAR_UUID_AUTH_DATA  0x0019
 #define CHAR_UUID_CMD_SEND   0x001A
