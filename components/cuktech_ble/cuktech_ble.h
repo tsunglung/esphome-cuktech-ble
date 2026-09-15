@@ -117,6 +117,8 @@ class CuktechBle : public Component {
   bool ble_settings_valid[32];
   StateCallback state_cb_{NULL};
 
+  bool ble_config_ok_{false};
+
   // Connection state plumbing
   bool pending_connected_state_{false};
   bool last_published_connected_{false};

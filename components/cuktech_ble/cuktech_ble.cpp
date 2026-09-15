@@ -66,8 +66,6 @@ static void do_set_state(BLEState s);
 // Definition of the cache declared above.
 std::string g_device_name_cache;
 
-static bool g_ble_config_ok = false;
-
 static BLEState g_state = BLE_IDLE;
 static uint16_t g_conn_handle = 0xFFFF;
 static bool g_connected = false;
@@ -1458,7 +1456,7 @@ void CuktechBle::clear_bonding() {
 }
 
 void CuktechBle::check_config() {
-  g_ble_config_ok = true;
+  this->ble_config_ok_ = true;
   /* Validate BLE config before initializing NimBLE. If MAC/token/key
     are missing or ill-formed, skip BLE entirely — no scanning, no
     repeated connection attempts. */
@@ -1477,7 +1475,7 @@ void CuktechBle::check_config() {
               this->ble_token_.c_str() ? (tlen > 8 ? "set" : "short") : "null",
               (unsigned)tlen);
       g_enabled = false;
-      g_ble_config_ok = false;
+      this->ble_config_ok_ = false;
   }
 
   memcpy(g_target_addr, mac, 6);
@@ -1493,7 +1491,7 @@ void CuktechBle::check_config() {
 
 void CuktechBle::set_enable_controlling(bool enable) {
   this->check_config();
-  if (!g_ble_config_ok) {
+  if (!this->ble_config_ok_) {
       ESP_LOGE(TAG, "BLE config is not ok!");
     return;
   }
