@@ -1,0 +1,304 @@
+substitutions:
+  devicename: cuktech-ble
+  upper_devicename: "Cuktech BLE Bridge"
+  ws2812_pin: GPIO20
+  ws2812_en: GPIO19
+  led_pin: GPIO7
+
+esphome:
+  name: ${devicename}
+  friendly_name: ${upper_devicename}
+  comment: CUKTECH 10 GaN Charger Ultra (njcuk.fitting.ad1204)
+  project:
+    name: "Cuktech.njcuk_fitting_ad1204"
+    version: "1.1.0"
+  name_add_mac_suffix: true
+  on_boot:
+    - priority: 500
+      then:
+        - lambda: 'id(cuktech_ble_bridge).set_ble_mac(id(ble_mac).state.c_str());'
+        - lambda: 'id(cuktech_ble_bridge).set_ble_token(id(ble_token).state.c_str());'
+        - lambda: 'id(cuktech_ble_bridge).set_ble_key(id(ble_key).state.c_str());'
+
+esp32:
+  board: esp32-c6-devkitm-1
+  variant: esp32c6
+  min_version: 2026.8.0
+  framework:
+    type: esp-idf
+    version: recommended
+    sdkconfig_options:
+      CONFIG_LWIP_MAX_SOCKETS: "23"
+      CONFIG_FATFS_LFN_STACK: "y"
+      # NimBLE host stack with peripheral + GATT-client roles.
+      # Bluedroid is disabled because the two stacks are mutually exclusive.
+      CONFIG_BT_ENABLED: y
+      CONFIG_BT_NIMBLE_ENABLED: y
+      CONFIG_BT_BLUEDROID_ENABLED: n
+      CONFIG_BT_CONTROLLER_ENABLED: y
+      CONFIG_BTDM_CTRL_MODE_BLE_ONLY: y
+      CONFIG_BTDM_CTRL_MODE_BR_EDR_ONLY: n
+      CONFIG_BTDM_CTRL_MODE_BTDM: n
+      CONFIG_BT_NIMBLE_MAX_CONNECTIONS: "1"
+      CONFIG_BT_NIMBLE_ROLE_PERIPHERAL: y
+      CONFIG_BT_NIMBLE_ROLE_BROADCASTER: y
+      # Central role enables the GATT client API (ble_gattc_*).
+      # The eBike connects to us as Central, but on that connection we act as
+      # GATT *client* against the eBike's GATT *server* on the Live Data Service.
+      CONFIG_BT_NIMBLE_ROLE_CENTRAL: y
+      CONFIG_BT_NIMBLE_ROLE_OBSERVER: y
+      CONFIG_BT_NIMBLE_SM_LEGACY: n
+      CONFIG_BT_NIMBLE_SM_SC: y
+      CONFIG_BT_NIMBLE_NVS_PERSIST: y
+      CONFIG_BT_NIMBLE_ATT_PREFERRED_MTU: "247"
+  flash_size: 4MB
+
+external_components:
+  - source: github://tsunglung/esphome-cuktech-ble@main
+    components: [ cuktech_ble ]
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  min_auth_mode: WPA2
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: ${devicename}
+    password: "12345678"
+
+captive_portal:
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+
+ota:
+  - platform: esphome
+
+web_server:
+  version: 3
+
+cuktech_ble:
+  id: cuktech_ble_bridge
+  device_name: ${upper_devicename}
+
+binary_sensor:
+  - platform: status
+    name: "Status"
+  - platform: cuktech_ble
+    connected:
+      name: "Connection Status"
+    c1_active:
+      name: "Port C1 Active"
+    c2_active:
+      name: "Port C2 Active"
+    c3_active:
+      name: "Port C3 Active"
+    a_active:
+      name: "Port A Active"
+
+button:
+  - platform: safe_mode
+    name: "Safe Mode Boot"
+    entity_category: diagnostic
+  - platform: restart
+    name: "Restart"
+    id: button_restart
+
+  - platform: cuktech_ble
+    factory_reset:
+      name: "Factory Reset"
+
+light:
+  - platform: esp32_rmt_led_strip
+    chipset: WS2812
+    pin: ${led_pin}
+    channel_colors: GRB
+    num_leds: 3
+    id: wled_id
+    restore_mode: RESTORE_DEFAULT_OFF
+    name: "RGB LEDs"
+    power_supply: rgbpwr
+
+power_supply:
+  - id: 'rgbpwr'
+    enable_on_boot: true
+    pin: ${ws2812_en}
+    enable_time: 10ms
+    keep_on_time: 10ms
+
+number:
+  - platform: cuktech_ble
+    c1_countdown:
+      name: "Port C1 Countdown"
+    c2_countdown:
+      name: "Port C2 Countdown"
+    c3_countdown:
+      name: "Port C3 Countdown"
+    a_countdown:
+      name: "Port A Countdown"
+
+select:
+  - platform: cuktech_ble
+    scene_mode:
+      name: "Scene Mode"
+    language:
+      name: "Language"
+    screen_saver_timeout:
+      name: "Screen Saver Timeout"
+
+sensor:
+  - platform: wifi_signal
+    name: "WiFi Signal"
+    update_interval: 60s
+
+  - platform: uptime
+    name: "Uptime"
+    filters:
+      - lambda: return x / 3600;
+    unit_of_measurement: "h"
+    accuracy_decimals: 1
+
+  - platform: internal_temperature
+    name: "Internal Temperature"
+
+  - platform: cuktech_ble
+    total_power:
+      name: "Total Power"
+    c1_power:
+      name: "Port C1 Power"
+      id: c1_power
+    c2_power:
+      name: "Port C2 Power"
+      id: c2_power
+    c3_power:
+      name: "Port C3 Power"
+      id: c3_power
+    a_power:
+      name: "Port A Power"
+      id: a_power
+    c1_current:
+      name: "Port C1 Current"
+    c2_current:
+      name: "Port C2 Current"
+    c3_current:
+      name: "Port C3 Current"
+    a_current:
+      name: "Port A Current"
+    c1_voltage:
+      name: "Port C1 Voltage"
+    c2_voltage:
+      name: "Port C2 Voltage"
+    c3_voltage:
+      name: "Port C3 Voltage"
+    a_voltage:
+      name: "Port A Voltage"
+
+switch:
+  - platform: cuktech_ble
+    enable_controlling:
+      name: "Connection Controlling"
+      restore_mode: RESTORE_DEFAULT_ON
+      on_turn_on:
+        then:
+          - lambda: 'id(cuktech_ble_bridge).set_ble_mac(id(ble_mac).state.c_str());'
+          - lambda: 'id(cuktech_ble_bridge).set_ble_token(id(ble_token).state.c_str());'
+          - lambda: 'id(cuktech_ble_bridge).set_ble_key(id(ble_key).state.c_str());'
+    screen_dir_lock:
+      name: "Screen Dir Lock"
+    screen_saver:
+      name: "Screen Saver"
+    c1_port:
+      name: "Port C1"
+    c2_port:
+      name: "Port C2"
+    c3_port:
+      name: "Port C3"
+    a_port:
+      name: "Port A"
+    c1_pd:
+      name: "Port C1 PD"
+    c1_pps:
+      name: "Port C1 PPS"
+    c1_ufcs:
+      name: "Port C1 UFCS"
+    c2_pd:
+      name: "Port C2 PD"
+    c2_pps:
+      name: "Port C2 PPS"
+    c2_ufcs:
+      name: "Port C2 UFCS"
+    c3_scp:
+      name: "Port C3 SCP"
+    c3_ufcs:
+      name: "Port C3 UFCS"
+    a_scp:
+      name: "Port A SCP"
+    a_ufcs:
+      name: "Port A UFCS"
+    a_always_on:
+      name: "Port A Always On"
+
+text:
+  - platform: template
+    name: "BLE Mac"
+    mode: text
+    id: ble_mac
+    icon: "mdi:bluetooth"
+    entity_category: config
+    optimistic: true
+    restore_value: true
+    set_action:
+      - lambda: 'id(cuktech_ble_bridge).set_ble_mac(id(ble_mac).state.c_str());'
+  - platform: template
+    name: "BLE Token"
+    mode: text
+    id: ble_token
+    optimistic: true
+    icon: "mdi:code-array"
+    entity_category: config
+    restore_value: true
+    set_action:
+      - lambda: 'id(cuktech_ble_bridge).set_ble_token(id(ble_token).state.c_str());'
+  - platform: template
+    name: "BLE Key"
+    mode: text
+    id: ble_key
+    icon: "mdi:key-variant"
+    entity_category: config
+    optimistic: true
+    restore_value: true
+    set_action:
+      - lambda: 'id(cuktech_ble_bridge).set_ble_key(id(ble_key).state.c_str());'
+
+text_sensor:
+  - platform: version
+    name: "ESPHome Version"
+  - platform: wifi_info
+    ip_address:
+      name: "IP Address"
+
+  - platform: cuktech_ble
+    version:
+      name: "CUKTECH 10 GaN Charger Ultra Version"
+    c1_protocol:
+      name: "Port C1 Protocol"
+    c2_protocol:
+      name: "Port C2 Protocol"
+    c3_protocol:
+      name: "Port C3 Protocol"
+    a_protocol:
+      name: "Port A Protocol"
+
+  - platform: template
+    name: "model"
+    update_interval: 1d
+    lambda: |-
+      return {"njcuk.fitting.ad1204"};
+
+time:
+  - platform: homeassistant
+    id: homeassistant_time
