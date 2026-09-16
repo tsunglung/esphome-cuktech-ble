@@ -88,6 +88,7 @@ static uint16_t g_disc_service_start = 0, g_disc_service_end = 0;
 static uint8_t g_target_addr[6] = {}, g_token[12] = {};
 static char g_mac_str[18] = {};
 static char g_ver_str[20] = {};
+static char g_ble_status[32] = {};
 static volatile bool g_nimble_ready = false;  /* written by NimBLE host task, read by ble_task */
 static volatile bool g_enabled = true;
 
@@ -517,10 +518,12 @@ static bool do_auth_sync_send_data(const uint8_t *data, size_t len) {
 }
 
 static int start_auth(void) {
-  ESP_LOGV(TAG, "Auth start");
   uint8_t buf[512]; size_t blen;
   uint8_t rand_key[16], dev_random[16], dev_hmac[32], our_hmac[32];
   SessionKeys keys = {};
+
+  ESP_LOGI(TAG, "Auth start");
+  sprintf(g_ble_status, "%s", "authenticating started");
 
   App.feed_wdt();
   ESP_LOGV(TAG, "Phase A: init (0xA4)");
@@ -604,6 +607,7 @@ static int start_auth(void) {
         g_keys = keys; g_send_it = 0; g_seq = 1; g_ra = 0;
         do_set_state(BLE_READY); g_last_keepalive = esp_timer_get_time() / 1000;
         ESP_LOGI(TAG, "Auth OK!");
+        sprintf(g_ble_status, "%s", "authenticating ok");
         return 0;
       }
       ESP_LOGW(TAG, "Auth failed: 0x%02X", code); return -1;
@@ -825,6 +829,7 @@ static void start_scanning() {
 
 static void start_discover(void) {
   ESP_LOGV(TAG, "Discovering...");
+  sprintf(g_ble_status, "%s", "discovering");
 
   g_disc_service_start = 0; g_disc_service_end = 0;
   xSemaphoreTake(g_disc_sem, 0);
@@ -833,6 +838,7 @@ static void start_discover(void) {
   App.feed_wdt();
   if (xSemaphoreTake(g_disc_sem, pdMS_TO_TICKS(3600)) != pdTRUE || g_disc_service_start == 0) {
     g_ra_ts = esp_timer_get_time() / 1000;
+    sprintf(g_ble_status, "%s", "discovering failed");
     ESP_LOGE(TAG, "Service discovery failed"); do_set_state(BLE_RECONNECT); return;
   }
 
@@ -860,6 +866,7 @@ static void start_discover(void) {
       start_disconnect();
       do_set_state(BLE_RECONNECT);
       App.feed_wdt();
+      sprintf(g_ble_status, "%s", "authenticating failed");
       ESP_LOGI(TAG, "Auth failed, disconnect + wait 2s");
       g_ra_ts = esp_timer_get_time() / 1000 - 2000;
     }
@@ -870,6 +877,7 @@ static void start_discover(void) {
 
   // read version
   on_rdu_rsp(g_ver_read_handle, (uint8_t[]){0x0, 0, 0, 0}, 4, (uint8_t *)g_ver_str);
+  sprintf(g_ble_status, "%s", "receiving information");
 }
 
 static void start_reconnect(void) {
@@ -883,6 +891,7 @@ static void start_reconnect(void) {
     g_ra_ts = now;
     ESP_LOGI(TAG, "Reconnect in %ums (attempt %d)", (unsigned)d, (int)(g_ra + 1));
   }
+  sprintf(g_ble_status, "%s", "reconnecting");
 }
 
 static void start_keepalive(void) {
@@ -927,6 +936,7 @@ static int on_gap_event(struct ble_gap_event *event, void *arg) {
         break;
     case BLE_GAP_EVENT_CONNECT:
         if (event->connect.status != 0) {
+          sprintf(g_ble_status, "%s", "connection started");
           ESP_LOGE(TAG, "Connect fail: %d", event->connect.status);
           g_connected = false;
           g_ra_ts = esp_timer_get_time() / 1000;
@@ -934,6 +944,7 @@ static int on_gap_event(struct ble_gap_event *event, void *arg) {
           break;
         }
         g_conn_handle = event->connect.conn_handle; g_connected = true;
+        sprintf(g_ble_status, "%s", "connected");
         ESP_LOGV(TAG, "Connected, handle=%d", g_conn_handle);
         ble_gattc_exchange_mtu(g_conn_handle, NULL, NULL);
         if (g_connected_sem) xSemaphoreGive(g_connected_sem);
@@ -941,6 +952,7 @@ static int on_gap_event(struct ble_gap_event *event, void *arg) {
     case BLE_GAP_EVENT_DISCONNECT:
         ESP_LOGV(TAG, "Disconnected, reason=%d", event->disconnect.reason);
         g_connected = false; g_conn_handle = 0xFFFF; do_drain_all_queues();
+        sprintf(g_ble_status, "%s", "disconnected");
         if (g_disconnect_sem) xSemaphoreGive(g_disconnect_sem);
         do_set_state(BLE_RECONNECT);
         break;
@@ -1049,6 +1061,7 @@ void ble_cmd_queue_loop(void) {
                     ESP_LOGV(TAG, "GET piid=%d value=%lu", cmd.piid, (unsigned long)val);
                     g_data_dirty = true;
                 } else {
+                    sprintf(g_ble_status, "get piid=%d failed", cmd.piid);
                     ESP_LOGW(TAG, "GET piid=%d FAILED", cmd.piid);
                 }
                 break;
@@ -1063,6 +1076,7 @@ void ble_cmd_queue_loop(void) {
                     g_setings_dirty = true;
                     ESP_LOGV(TAG, "SET piid=%d val=%lu OK", cmd.piid, (unsigned long)cmd.value);
                 } else {
+                    sprintf(g_ble_status, "set piid=%d failed", cmd.piid);
                     ESP_LOGW(TAG, "SET piid=%d val=%lu FAILED", cmd.piid, (unsigned long)cmd.value);
                 }
                 res = (BleResult){RES_SET, ok, cmd.piid, cmd.value, 0};
@@ -1253,18 +1267,18 @@ void CuktechBle::loop() {
 
   if (g_data_dirty) {
     g_data_dirty = false;
-    this->publish_portdata_();
+    this->publish_portdata_(false);
   }
 
   if (g_setings_dirty) {
     g_setings_dirty = false;
-    this->publish_settings_();
+    this->publish_settings_(false);
   }
   return;
 }
 
-void CuktechBle::publish_settings_(void) {
-  if (g_connected) {
+void CuktechBle::publish_settings_(bool force) {
+  if (g_connected || force) {
     if (this->scene_mode_select_) {
       this->scene_mode_select_->publish_state(g_settings[5] - 1);
     }
@@ -1340,11 +1354,11 @@ void CuktechBle::publish_settings_(void) {
   }
 }
 
-void CuktechBle::publish_portdata_() {
+void CuktechBle::publish_portdata_(bool force) {
   if (this->connected_binary_sensor_) {
     this->connected_binary_sensor_->publish_state(g_connected);
   }
-  if (g_connected) {
+  if (g_connected || force) {
     if (this->c1_active_binary_sensor_) {
       this->c1_active_binary_sensor_->publish_state(g_ports[0].status);
     }
@@ -1419,9 +1433,9 @@ void CuktechBle::publish_portdata_() {
     this->a_protocol_text_sensor_->publish_state(proto);
   }
 
-  //for (int i=0; i< 32; i++) {
-  //  ESP_LOGE(TAG, "g_settings %d %x", i, g_settings[i]);
-  //}
+  if (this->ble_status_text_sensor_) {
+    this->ble_status_text_sensor_->publish_state(g_ble_status);
+  }
 }
 
 void CuktechBle::dump_config() {
@@ -1476,6 +1490,7 @@ void CuktechBle::check_config() {
               (unsigned)tlen);
       g_enabled = false;
       this->ble_config_ok_ = false;
+      return;
   }
 
   memcpy(g_target_addr, mac, 6);
@@ -1492,21 +1507,25 @@ void CuktechBle::check_config() {
 void CuktechBle::set_enable_controlling(bool enable) {
   this->check_config();
   if (!this->ble_config_ok_) {
+      sprintf(g_ble_status, "%s", "ble config nOK");
       ESP_LOGE(TAG, "BLE config is not ok!");
-    return;
+      return;
   }
   g_enabled = enable;
 
   ESP_LOGV(TAG, "Controlling switch -> %s", enable ? "ON" : "OFF");
+  g_ra = 0;
   if (g_nimble_ready && !this->last_published_connected_) {
     ble_gap_adv_stop();
     if (enable) {
         if (g_state == BLE_IDLE) do_set_state(BLE_SCANNING);
     } else {
+        memset(g_ports, 0x0, sizeof(g_ports));
+        g_data_dirty = true;
+        g_setings_dirty = true;
         if (g_connected) start_disconnect();
         if (g_state != BLE_IDLE) do_set_state(BLE_IDLE);
-        //memset(g_ports, 0x0, sizeof(g_ports));
-        this->publish_portdata_();
+        this->last_published_connected_ = false;
     }
   }
 }

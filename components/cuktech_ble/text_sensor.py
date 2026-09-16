@@ -5,6 +5,7 @@ from esphome.components import text_sensor
 from esphome.const import (
     CONF_VERSION,
     ENTITY_CATEGORY_DIAGNOSTIC,
+    ICON_BLUETOOTH,
     ICON_NEW_BOX
 )
 
@@ -14,6 +15,7 @@ CONF_C1_PROTOCOL = "c1_protocol"
 CONF_C2_PROTOCOL = "c2_protocol"
 CONF_C3_PROTOCOL = "c3_protocol"
 CONF_A_PROTOCOL = "a_protocol"
+CONF_BLE_STATUS = "ble_status"
 
 ICON_USB_C_PORT = "mdi:usb-c-port"
 ICON_USB_PORT = "mdi:usb-port"
@@ -41,6 +43,10 @@ CONFIG_SCHEMA = cv.Schema(
             entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
             icon=ICON_USB_PORT
         ),
+        cv.Optional(CONF_BLE_STATUS): text_sensor.text_sensor_schema(
+            entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
+            icon=ICON_BLUETOOTH
+        ),
     }
 )
 
@@ -50,6 +56,7 @@ _SENSORS = {
     CONF_C2_PROTOCOL: "set_c2_protocol_text_sensor",
     CONF_C3_PROTOCOL: "set_c3_protocol_text_sensor",
     CONF_A_PROTOCOL: "set_a_protocol_text_sensor",
+    CONF_BLE_STATUS: "set_ble_status_text_sensor"
 }
 
 async def to_code(config):

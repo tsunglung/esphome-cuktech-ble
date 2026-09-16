@@ -199,10 +199,11 @@ class CuktechBle : public Component {
   SUB_TEXT_SENSOR(c2_protocol)
   SUB_TEXT_SENSOR(c3_protocol)
   SUB_TEXT_SENSOR(a_protocol)
+  SUB_TEXT_SENSOR(ble_status)
 #endif
 
-  void publish_portdata_();
-  void publish_settings_();
+  void publish_portdata_(bool force);
+  void publish_settings_(bool force);
 };
 
 }  // namespace cuktech_ble
