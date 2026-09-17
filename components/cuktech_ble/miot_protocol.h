@@ -18,6 +18,7 @@
 #define CHAR_UUID_AUTH_DATA  0x0019
 #define CHAR_UUID_CMD_SEND   0x001A
 #define CHAR_UUID_CMD_RECV   0x001B
+#define CHAR_UUID_DEV_INFO   0x001C
 
 // --- Auth Command ---
 #define CMD_LOGIN            0x24

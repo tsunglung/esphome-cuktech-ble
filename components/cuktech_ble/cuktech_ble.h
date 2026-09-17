@@ -52,6 +52,12 @@ typedef struct {
 typedef struct { uint8_t data[NOTIF_ITEM_SIZE]; size_t len; uint16_t conn_handle, attr_handle; } NotifItem;
 typedef struct { float voltage, current, power; uint8_t protocol, status; bool active; } PortData;
 
+typedef struct {
+    char firmware_version[20];
+    char protocol_version[2];
+    char chip_name[16];
+} DeviceInfo;
+
 namespace esphome {
 namespace cuktech_ble {
 
@@ -70,13 +76,7 @@ class CuktechBle : public Component {
   void set_ble_token(const std::string &data) { this->ble_token_ = data; }
   void set_ble_key(const std::string &data) { this->ble_key_ = data; }
 
-  // ---- Called from NimBLE callback context ----
-  void on_connect_state_change(bool connected);
-  void on_live_data_notify(const uint8_t *data, size_t len);
-
-  void clear_bonding();
   void check_config();
-
   void factory_reset();
 
   void set_enable_controlling(bool enable);
@@ -126,10 +126,6 @@ class CuktechBle : public Component {
 
   uint64_t last_cd_fetch_slow_{0};
   uint64_t last_cd_fetch_fast_{0};
-
-  // Last decoded values (held across notifications since fields may be sparse)
-  PortData latest_;
-  bool data_dirty_{false};
 
 #ifdef USE_BINARY_SENSOR
   SUB_BINARY_SENSOR(connected)
@@ -194,6 +190,8 @@ class CuktechBle : public Component {
 #endif
 
 #ifdef USE_TEXT_SENSOR
+  SUB_TEXT_SENSOR(chipset)
+  SUB_TEXT_SENSOR(protocol)
   SUB_TEXT_SENSOR(version)
   SUB_TEXT_SENSOR(c1_protocol)
   SUB_TEXT_SENSOR(c2_protocol)

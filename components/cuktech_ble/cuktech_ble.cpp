@@ -24,6 +24,7 @@ extern "C" {
 #include "host/util/util.h"
 #include "services/gap/ble_svc_gap.h"
 #include "services/gatt/ble_svc_gatt.h"
+
 // NVS-backed bond store (provided by NimBLE's ble_store_config helper)
 void ble_store_config_init(void);
 }
@@ -69,8 +70,8 @@ std::string g_device_name_cache;
 static BLEState g_state = BLE_IDLE;
 static uint16_t g_conn_handle = 0xFFFF;
 static bool g_connected = false;
-static uint16_t g_auth_ctrl_handle = 0, g_auth_data_handle = 0, g_cmd_send_handle = 0, g_cmd_recv_handle = 0, g_ver_read_handle = 0;
-static QueueHandle_t g_q_auth_ctrl = NULL, g_q_auth_data = NULL, g_q_cmd_send = NULL, g_q_cmd_recv = NULL, g_q_ver_read = NULL;
+static uint16_t g_auth_ctrl_handle = 0, g_auth_data_handle = 0, g_cmd_send_handle = 0, g_cmd_recv_handle = 0, g_ver_read_handle = 0, g_dev_info_handle = 0;
+static QueueHandle_t g_q_auth_ctrl = NULL, g_q_auth_data = NULL, g_q_cmd_send = NULL, g_q_cmd_recv = NULL, g_q_ver_read = NULL, g_q_dev_info = NULL;
 static SessionKeys g_keys = {};
 static uint32_t g_send_it = 0;
 static uint8_t g_seq = 1;
@@ -88,15 +89,16 @@ static uint16_t g_disc_service_start = 0, g_disc_service_end = 0;
 static uint8_t g_target_addr[6] = {}, g_token[12] = {};
 static char g_mac_str[18] = {};
 static char g_ver_str[20] = {};
+static DeviceInfo g_device_info;
 static char g_ble_status[32] = {};
 static volatile bool g_nimble_ready = false;  /* written by NimBLE host task, read by ble_task */
 static volatile bool g_enabled = true;
 
 typedef struct { uint16_t uuid; uint16_t *handle; const char *name; } CharCtx;
-static CharCtx g_char_ctx[5];
+static CharCtx g_char_ctx[6];
 static int g_char_ctx_n = 0;
 
-static bool g_setings_dirty = false;
+static bool g_settings_dirty = false;
 static bool g_data_dirty = false;
 #define PIID21_ALL_ON  0x03030F0F
 static uint32_t g_protocol_extend_val = PIID21_ALL_ON;
@@ -237,6 +239,7 @@ static void do_dispatch_notif(uint16_t attr_handle, const uint8_t *data, size_t 
   else if (attr_handle == g_cmd_send_handle)  q = g_q_cmd_send;
   else if (attr_handle == g_cmd_recv_handle)  q = g_q_cmd_recv;
   else if (attr_handle == g_ver_read_handle)  q = g_q_ver_read;
+  else if (attr_handle == g_dev_info_handle)  q = g_q_dev_info;
 
   if (q) {
     if (xQueueSend(q, &item, 0) != pdTRUE) {
@@ -350,7 +353,7 @@ static int do_disc_chr_cb(uint16_t conn_handle, const struct ble_gatt_error *err
 static void do_disable_all_notifications(void) {
   if (!g_connected) return;
   uint8_t val[] = {0x00, 0x00};
-  uint16_t handles[] = {g_auth_ctrl_handle, g_auth_data_handle, g_cmd_send_handle, g_cmd_recv_handle, g_ver_read_handle};
+  uint16_t handles[] = {g_auth_ctrl_handle, g_auth_data_handle, g_cmd_send_handle, g_cmd_recv_handle, g_ver_read_handle, g_dev_info_handle};
   for (int i = 0; i < 4; i++) { if (handles[i]) { on_wru_nr(handles[i] + 1, val, 2); vTaskDelay(pdMS_TO_TICKS(30)); } }
   vTaskDelay(pdMS_TO_TICKS(100));
 }
@@ -813,6 +816,36 @@ bool do_miot_set(uint8_t piid, uint32_t value) {
     return ok;
 }
 
+bool do_read_device_info(void) {
+  // read version
+  on_rdu_rsp(g_ver_read_handle, (uint8_t[]){0x0, 0, 0, 0}, 4, (uint8_t *)g_device_info.firmware_version);
+
+  on_wru_nr(g_dev_info_handle, (uint8_t[]){0x00}, 1);
+  uint8_t tmp[25];
+  for (uint16_t i = 0; i < 3; i++) {
+      NotifItem item;
+      App.feed_wdt();
+      if (xQueueReceive(g_q_dev_info, &item, pdMS_TO_TICKS(1000)) != pdTRUE) break;
+      if (item.len >= 3) {
+        memcpy(g_device_info.protocol_version, item.data + 1, 2);
+        break;
+      }
+  }
+
+  on_wru_nr(g_dev_info_handle, (uint8_t[]){0x03}, 1);
+  for (uint16_t i = 0; i < 3; i++) {
+      NotifItem item;
+      App.feed_wdt();
+      if (xQueueReceive(g_q_dev_info, &item, pdMS_TO_TICKS(1000)) != pdTRUE) break;
+      if (item.len >= 2) {
+        memcpy(g_device_info.chip_name, item.data + 2, item.len - 2);
+        break;
+      }
+  }
+
+  return true;
+}
+
 /* ============================================================
  * BLE lifecycle: scan, discover, disconnect, reconnect, keepalive
  * ============================================================ */
@@ -847,7 +880,8 @@ static void start_discover(void) {
   g_char_ctx[2] = (CharCtx){CHAR_UUID_CMD_SEND,  &g_cmd_send_handle,  "cmd_send"};
   g_char_ctx[3] = (CharCtx){CHAR_UUID_CMD_RECV,  &g_cmd_recv_handle,  "cmd_recv"};
   g_char_ctx[4] = (CharCtx){CHAR_UUID_VERSION_RD,&g_ver_read_handle,  "ver_read"};
-  g_char_ctx_n = 5;
+  g_char_ctx[5] = (CharCtx){CHAR_UUID_DEV_INFO,  &g_dev_info_handle,  "dev_info"};
+  g_char_ctx_n = 6;
   xSemaphoreTake(g_disc_sem, 0);
   ble_gattc_disc_all_chrs(g_conn_handle, g_disc_service_start, g_disc_service_end, do_disc_chr_cb, NULL);
   if (xSemaphoreTake(g_disc_sem, pdMS_TO_TICKS(3600)) != pdTRUE) ESP_LOGW(TAG, "Char disc timeout");
@@ -858,6 +892,7 @@ static void start_discover(void) {
   if (g_cmd_send_handle)  { uint8_t v[] = {0x01,0x00}; on_wru(g_cmd_send_handle+1,  v, 2); vTaskDelay(pdMS_TO_TICKS(100)); }
   if (g_cmd_recv_handle)  { uint8_t v[] = {0x01,0x00}; on_wru(g_cmd_recv_handle+1,  v, 2); vTaskDelay(pdMS_TO_TICKS(100)); }
   if (g_ver_read_handle)  { uint8_t v[] = {0x01,0x00}; on_wru(g_ver_read_handle+1,  v, 2); vTaskDelay(pdMS_TO_TICKS(100)); }
+  if (g_dev_info_handle)  { uint8_t v[] = {0x01,0x00}; on_wru(g_dev_info_handle+1,  v, 2); vTaskDelay(pdMS_TO_TICKS(100)); }
   vTaskDelay(pdMS_TO_TICKS(500));
 
   if (g_auth_ctrl_handle && g_auth_data_handle) {
@@ -875,8 +910,7 @@ static void start_discover(void) {
     ESP_LOGE(TAG, "Missing auth handles"); do_set_state(BLE_RECONNECT);
   }
 
-  // read version
-  on_rdu_rsp(g_ver_read_handle, (uint8_t[]){0x0, 0, 0, 0}, 4, (uint8_t *)g_ver_str);
+  do_read_device_info();
   sprintf(g_ble_status, "%s", "receiving information");
 }
 
@@ -1057,7 +1091,7 @@ void ble_cmd_queue_loop(void) {
                     if (cmd.piid < 32) { g_settings[cmd.piid] = val; g_settings_valid[cmd.piid] = true; }
                     if (cmd.piid == 16) { g_port_ctrl_val = val; g_port_ctrl_valid = true; }
                     if (cmd.piid == 21) { g_protocol_extend_val = val; do_store_setting(21, val); }
-                    g_setings_dirty = true;
+                    g_settings_dirty = true;
                     ESP_LOGV(TAG, "GET piid=%d value=%lu", cmd.piid, (unsigned long)val);
                     g_data_dirty = true;
                 } else {
@@ -1073,7 +1107,7 @@ void ble_cmd_queue_loop(void) {
                     if (cmd.piid == 16) { g_port_ctrl_val = cmd.value; g_port_ctrl_valid = true; }
                     else if (cmd.piid < 32) { g_settings[cmd.piid] = cmd.value; g_settings_valid[cmd.piid] = true; }
                     if (cmd.piid == 21) { g_protocol_extend_val = cmd.value; do_store_setting(21, cmd.value); }
-                    g_setings_dirty = true;
+                    g_settings_dirty = true;
                     ESP_LOGV(TAG, "SET piid=%d val=%lu OK", cmd.piid, (unsigned long)cmd.value);
                 } else {
                     sprintf(g_ble_status, "set piid=%d failed", cmd.piid);
@@ -1204,6 +1238,7 @@ void CuktechBle::setup() {
   g_q_cmd_send  = xQueueCreate(NOTIF_QUEUE_LEN, sizeof(NotifItem));
   g_q_cmd_recv  = xQueueCreate(NOTIF_QUEUE_LEN, sizeof(NotifItem));
   g_q_ver_read  = xQueueCreate(NOTIF_QUEUE_LEN, sizeof(NotifItem));
+  g_q_dev_info  = xQueueCreate(NOTIF_QUEUE_LEN, sizeof(NotifItem));
   g_op_sem = xSemaphoreCreateBinary();
   g_connected_sem = xSemaphoreCreateBinary();
   g_disc_sem = xSemaphoreCreateBinary();
@@ -1270,8 +1305,8 @@ void CuktechBle::loop() {
     this->publish_portdata_(false);
   }
 
-  if (g_setings_dirty) {
-    g_setings_dirty = false;
+  if (g_settings_dirty) {
+    g_settings_dirty = false;
     this->publish_settings_(false);
   }
   return;
@@ -1351,6 +1386,17 @@ void CuktechBle::publish_settings_(bool force) {
     if (this->a_scp_switch_) {
       this->a_scp_switch_->publish_state(g_settings[21] & (0x1 << 25));
     }
+    if (this->chipset_text_sensor_) {
+      this->chipset_text_sensor_->publish_state(g_device_info.chip_name);
+    }
+    if (this->protocol_text_sensor_) {
+      char version[8];
+      sprintf(version, "%x.%x", g_device_info.protocol_version[0], g_device_info.protocol_version[1]);
+      this->protocol_text_sensor_->publish_state(version);
+    }
+    if (this->version_text_sensor_) {
+      this->version_text_sensor_->publish_state(g_device_info.firmware_version);
+    }
   }
 }
 
@@ -1411,9 +1457,6 @@ void CuktechBle::publish_portdata_(bool force) {
     if (this->a_voltage_sensor_) {
       this->a_voltage_sensor_->publish_state(g_ports[3].voltage);
     }
-    if (this->version_text_sensor_) {
-      this->version_text_sensor_->publish_state(g_ver_str);
-    }
   }
 
   if (this->c1_protocol_text_sensor_) {
@@ -1453,20 +1496,6 @@ float CuktechBle::get_setup_priority() const {
 
 void CuktechBle::on_shutdown() {
   start_disconnect();
-}
-
-void CuktechBle::on_connect_state_change(bool connected) {
-  this->pending_connected_state_ = connected;
-  this->connection_dirty_ = true;
-  if (!connected) {
-    // Reset "present" flags so stale values don't get re-published on reconnect.
-    this->latest_ = PortData{};
-  }
-}
-
-void CuktechBle::clear_bonding() {
-  ESP_LOGW(TAG, "Clearing all bonded peers from NVS");
-  ble_store_clear();
 }
 
 void CuktechBle::check_config() {
@@ -1521,8 +1550,9 @@ void CuktechBle::set_enable_controlling(bool enable) {
         if (g_state == BLE_IDLE) do_set_state(BLE_SCANNING);
     } else {
         memset(g_ports, 0x0, sizeof(g_ports));
-        g_data_dirty = true;
-        g_setings_dirty = true;
+        g_device_info = {};
+        this->publish_portdata_(true);
+        this->publish_settings_(true);
         if (g_connected) start_disconnect();
         if (g_state != BLE_IDLE) do_set_state(BLE_IDLE);
         this->last_published_connected_ = false;

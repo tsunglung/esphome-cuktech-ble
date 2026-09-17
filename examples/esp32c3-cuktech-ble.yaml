@@ -1,7 +1,7 @@
 substitutions:
   devicename: cuktech-ble
   upper_devicename: "Cuktech BLE Bridge"
-  led_pin: GPIO48
+  led_pin: GPIO8
 
 esphome:
   name: ${devicename}
@@ -271,6 +271,14 @@ text_sensor:
       name: "IP Address"
 
   - platform: cuktech_ble
+    chipset:
+      name: "Chip Name"
+    protocol:
+      name: "Protocol Version"
+    version:
+      name: "Firmware Version"
+    ble_status:
+      name: "BLE Status"
     c1_protocol:
       name: "Port C1 Protocol"
     c2_protocol:

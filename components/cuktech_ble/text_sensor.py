@@ -3,9 +3,12 @@ import esphome.codegen as cg
 import esphome.config_validation as cv
 from esphome.components import text_sensor
 from esphome.const import (
+    CONF_CHIPSET,
+    CONF_PROTOCOL,
     CONF_VERSION,
     ENTITY_CATEGORY_DIAGNOSTIC,
     ICON_BLUETOOTH,
+    ICON_CHIP,
     ICON_NEW_BOX
 )
 
@@ -23,9 +26,17 @@ ICON_USB_PORT = "mdi:usb-port"
 CONFIG_SCHEMA = cv.Schema(
     {
         cv.GenerateID(CONF_CUKTECH_BLE_ID): cv.use_id(CuktechBle),
+        cv.Optional(CONF_CHIPSET): text_sensor.text_sensor_schema(
+            entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
+            icon=ICON_CHIP
+        ),
+        cv.Optional(CONF_PROTOCOL): text_sensor.text_sensor_schema(
+            entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
+            icon="mdi:protocol"
+        ),
         cv.Optional(CONF_VERSION): text_sensor.text_sensor_schema(
             entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
-            icon="mdi:new-box"
+            icon=ICON_NEW_BOX
         ),
         cv.Optional(CONF_C1_PROTOCOL): text_sensor.text_sensor_schema(
             entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
@@ -51,6 +62,8 @@ CONFIG_SCHEMA = cv.Schema(
 )
 
 _SENSORS = {
+    CONF_CHIPSET: "set_chipset_text_sensor",
+    CONF_PROTOCOL: "set_protocol_text_sensor",
     CONF_VERSION: "set_version_text_sensor",
     CONF_C1_PROTOCOL: "set_c1_protocol_text_sensor",
     CONF_C2_PROTOCOL: "set_c2_protocol_text_sensor",
