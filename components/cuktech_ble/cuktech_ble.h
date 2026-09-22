@@ -28,7 +28,7 @@
 #include <cstdint>
 
 // --- Timing ---
-#define KEEPALIVE_INTERVAL_MS    10000
+#define KEEPALIVE_INTERVAL_MS    30000
 
 typedef enum {
     BLE_IDLE, BLE_SCANNING, BLE_CONNECTING, BLE_AUTHENTICATING,

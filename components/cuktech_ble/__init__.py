@@ -44,7 +44,8 @@ async def to_code(config):
     await cg.register_component(var, config)
     cg.add(var.set_device_name(config[CONF_DEVICE_NAME]))
     if cv.Version.parse(ESPHOME_VERSION) >= cv.Version.parse("2026.9.0"):
-        request_bluetooth()
+        if CORE.is_esp32:
+            request_bluetooth()
 
     if config.get(CONF_USE_PSRAM, False):
         cg.add_define("USE_ESP32_BLE_PSRAM")
