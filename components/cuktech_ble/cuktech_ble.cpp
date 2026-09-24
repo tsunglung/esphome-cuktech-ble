@@ -102,12 +102,9 @@ static bool g_settings_dirty = false;
 static bool g_data_dirty = false;
 #define PIID21_ALL_ON  0x03030F0F
 static uint32_t g_protocol_extend_val = PIID21_ALL_ON;
-static bool g_protocol_extend_valid = true;
 static uint32_t g_port_ctrl_val = 0xFF;  // assume all ports on (can't GET to read actual)
 static bool g_port_ctrl_valid = true;    // track SET updates
-static uint64_t last_set16_time = 0;
-static uint64_t last_set_time = 0;   // any SET command (used for push/GET debounce during transitions)
-static uint8_t last_set_piid = 0;    // piid of last SET — distinguish port control from protocol change
+static uint32_t g_ble_fail_count = 0;
 
 // ---- Helpers ----------------------------------------------------------------
 __attribute__((unused)) static void log_hex(const char *prefix, const uint8_t *buf, size_t len) {
@@ -989,6 +986,7 @@ static int on_gap_event(struct ble_gap_event *event, void *arg) {
         sprintf(g_ble_status, "%s", "disconnected");
         if (g_disconnect_sem) xSemaphoreGive(g_disconnect_sem);
         do_set_state(BLE_RECONNECT);
+        g_ra_ts = esp_timer_get_time() / 1000;
         break;
     case BLE_GAP_EVENT_MTU:
         ESP_LOGV(TAG, "MTU: %d", event->mtu.value);
@@ -1097,6 +1095,12 @@ void ble_cmd_queue_loop(void) {
                 } else {
                     sprintf(g_ble_status, "get piid=%d failed", cmd.piid);
                     ESP_LOGW(TAG, "GET piid=%d FAILED", cmd.piid);
+                    g_ble_fail_count++;
+                    if (g_ble_fail_count > 10000) {
+                        do_set_state(BLE_RECONNECT);
+                        g_ble_fail_count = 0;
+                        g_ra_ts = esp_timer_get_time() / 1000;
+                    }
                 }
                 break;
             }
@@ -1112,6 +1116,12 @@ void ble_cmd_queue_loop(void) {
                 } else {
                     sprintf(g_ble_status, "set piid=%d failed", cmd.piid);
                     ESP_LOGW(TAG, "SET piid=%d val=%lu FAILED", cmd.piid, (unsigned long)cmd.value);
+                    g_ble_fail_count++;
+                    if (g_ble_fail_count > 10000) {
+                        do_set_state(BLE_RECONNECT);
+                        g_ble_fail_count = 0;
+                        g_ra_ts = esp_timer_get_time() / 1000;
+                    }
                 }
                 res = (BleResult){RES_SET, ok, cmd.piid, cmd.value, 0};
                 xQueueSend(result_queue, &res, 0);
@@ -1136,7 +1146,6 @@ void ble_cmd_queue_loop(void) {
                 }
                 res = (BleResult){RES_SET, true, 16, current, 0};
                 xQueueSend(result_queue, &res, 0);
-                last_set16_time = esp_timer_get_time() / 1000;
                 break;
             }
             case CMD_ACTION: {
@@ -1179,11 +1188,6 @@ static bool handle_port_control(const char *port, const char *action) {
       return false;
   }
   ESP_LOGV(TAG, "PORT %s %s (bit=%d)", port, action, bit);
-
-  //if (on)
-  //  g_port_ctrl_val |= 0x1 << bit;
-  //else
-  //  g_port_ctrl_val &= ~(0x1 << bit);
 
   return true;
 }
