@@ -241,7 +241,7 @@ text:
     optimistic: true
     restore_value: true
     set_action:
-      - lambda: 'id(cuktech_ble_bridge).set_ble_mac(id(ble_mac).state.c_str());'
+      - lambda: 'id(cuktech_ble_bridge).set_ble_mac(x);'
   - platform: template
     name: "BLE Token"
     mode: text
@@ -251,7 +251,7 @@ text:
     entity_category: config
     restore_value: true
     set_action:
-      - lambda: 'id(cuktech_ble_bridge).set_ble_token(id(ble_token).state.c_str());'
+      - lambda: 'id(cuktech_ble_bridge).set_ble_token(x);'
   - platform: template
     name: "BLE Key"
     mode: text
@@ -261,7 +261,7 @@ text:
     optimistic: true
     restore_value: true
     set_action:
-      - lambda: 'id(cuktech_ble_bridge).set_ble_key(id(ble_key).state.c_str());'
+      - lambda: 'id(cuktech_ble_bridge).set_ble_key(x;'
 
 text_sensor:
   - platform: version
