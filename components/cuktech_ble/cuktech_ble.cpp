@@ -367,7 +367,7 @@ static void do_set_state(BLEState s) {
       // detection uses real hardware protocol codes (PIID 17/18).
       static const uint8_t INIT_PIIDS[] = {5, 6, 15, 21, 17, 18};
       for (int i = 0; i < sizeof(INIT_PIIDS); i++) {
-          BleCommand c = {CMD_GET, INIT_PIIDS[i], 0, 0};
+          BleCommand c = {CMD_GET, SIID_CHARGER, INIT_PIIDS[i], 0, 0};
           xQueueSend(cmd_queue, &c, 0);
       }
   }
@@ -768,11 +768,13 @@ static bool do_recv_cmd(uint8_t *out, size_t *ol, uint32_t ms) {
     return false;
 }
 
-bool do_miot_get(uint8_t piid, uint32_t* value) {
-    do_drain_cmd_recv_pushes();
+bool do_miot_get(uint8_t siid, uint8_t piid, uint32_t* value) {
     uint8_t buf[16] = {0};
+
+    do_drain_cmd_recv_pushes();
+    //props: list of (siid, piid). Frame: len|0x2000, tid, op=2, count, [siid u8, piid u16]*
     buf[0] = 12; buf[1] = 0x20; buf[2] = g_seq; buf[3] = 0;
-    buf[4] = 0x02; buf[5] = 0x01; buf[6] = SIID_CHARGER;
+    buf[4] = 0x02; buf[5] = 0x01; buf[6] = siid;
     buf[7] = piid; buf[8] = 0; buf[9] = 0x01; buf[10] = 0x10; buf[11] = 0;
     g_seq = (g_seq + 1) & 0xFF;
     if (!do_send_enc_sync(buf, 12)) return false;
@@ -786,15 +788,16 @@ bool do_miot_get(uint8_t piid, uint32_t* value) {
     return true;
 }
 
-bool do_miot_set(uint8_t piid, uint32_t value) {
-    do_drain_cmd_recv_pushes();
+bool do_miot_set(uint8_t siid, uint8_t piid, uint32_t value) {
     uint8_t buf[16] = {0};
+
+    do_drain_cmd_recv_pushes();
     uint8_t byte_len, tl_lo, tl_hi;
     if (value <= 0xFF) { byte_len = 1; tl_lo = 0x01; tl_hi = 0x10; }
     else { byte_len = 4; tl_lo = 0x04; tl_hi = 0x50; }
     int total_len = 11 + byte_len;
     buf[0] = total_len; buf[1] = 0x20; buf[2] = g_seq; buf[3] = 0;
-    buf[4] = 0x00; buf[5] = 0x01; buf[6] = SIID_CHARGER;
+    buf[4] = 0x00; buf[5] = 0x01; buf[6] = siid;
     buf[7] = piid; buf[8] = 0; buf[9] = tl_lo; buf[10] = tl_hi;
     buf[11] = value & 0xFF;
     if (byte_len >= 4) { buf[12] = (value >> 8) & 0xFF; buf[13] = (value >> 16) & 0xFF; buf[14] = (value >> 24) & 0xFF; }
@@ -1084,19 +1087,19 @@ void ble_cmd_queue_loop(void) {
           switch (cmd.type) {
             case CMD_GET: {
                 uint32_t val = 0;
-                bool ok = do_miot_get(cmd.piid, &val);
+                bool ok = do_miot_get(cmd.siid, cmd.piid, &val);
                 if (ok) {
                     if (cmd.piid < 32) { g_settings[cmd.piid] = val; g_settings_valid[cmd.piid] = true; }
                     if (cmd.piid == 16) { g_port_ctrl_val = val; g_port_ctrl_valid = true; }
                     if (cmd.piid == 21) { g_protocol_extend_val = val; do_store_setting(21, val); }
                     g_settings_dirty = true;
-                    ESP_LOGV(TAG, "GET piid=%d value=%lu", cmd.piid, (unsigned long)val);
+                    ESP_LOGV(TAG, "GET sii=%d piid=%d value=%lu", cmd.siid, cmd.piid, (unsigned long)val);
                     g_data_dirty = true;
                 } else {
-                    sprintf(g_ble_status, "get piid=%d failed", cmd.piid);
-                    ESP_LOGW(TAG, "GET piid=%d FAILED", cmd.piid);
+                    sprintf(g_ble_status, "get siid=%d piid=%d failed", cmd.siid, cmd.piid);
+                    ESP_LOGW(TAG, "GET siid=%d piid=%d FAILED", cmd.siid, cmd.piid);
                     g_ble_fail_count++;
-                    if (g_ble_fail_count > 10000) {
+                    if (g_ble_fail_count > 1000) {
                         do_set_state(BLE_RECONNECT);
                         g_ble_fail_count = 0;
                         g_ra_ts = esp_timer_get_time() / 1000;
@@ -1105,8 +1108,8 @@ void ble_cmd_queue_loop(void) {
                 break;
             }
             case CMD_SET: {
-                ESP_LOGV(TAG, "SET piid=%d val=%lu", cmd.piid, (unsigned long)cmd.value);
-                bool ok = do_miot_set(cmd.piid, cmd.value);
+                ESP_LOGV(TAG, "SET siid=%d piid=%d val=%lu", cmd.siid, cmd.piid, (unsigned long)cmd.value);
+                bool ok = do_miot_set(cmd.siid, cmd.piid, cmd.value);
                 if (ok) {
                     if (cmd.piid == 16) { g_port_ctrl_val = cmd.value; g_port_ctrl_valid = true; }
                     else if (cmd.piid < 32) { g_settings[cmd.piid] = cmd.value; g_settings_valid[cmd.piid] = true; }
@@ -1117,7 +1120,7 @@ void ble_cmd_queue_loop(void) {
                     sprintf(g_ble_status, "set piid=%d failed", cmd.piid);
                     ESP_LOGW(TAG, "SET piid=%d val=%lu FAILED", cmd.piid, (unsigned long)cmd.value);
                     g_ble_fail_count++;
-                    if (g_ble_fail_count > 10000) {
+                    if (g_ble_fail_count > 1000) {
                         do_set_state(BLE_RECONNECT);
                         g_ble_fail_count = 0;
                         g_ra_ts = esp_timer_get_time() / 1000;
@@ -1134,7 +1137,7 @@ void ble_cmd_queue_loop(void) {
                 else current &= ~(1 << cmd.piid);
                 g_port_ctrl_val = current;
                 g_port_ctrl_valid = true;
-                if (do_miot_set(16, current)) {
+                if (do_miot_set(SIID_CHARGER, 16, current)) {
                     ESP_LOGV(TAG, "CMD_PORT: SET16=0x%02lX sent", (unsigned long)current);
                 } else {
                     ESP_LOGW(TAG, "CMD_PORT: SET16=0x%02lX FAILED", (unsigned long)current);
@@ -1150,7 +1153,7 @@ void ble_cmd_queue_loop(void) {
             }
             case CMD_ACTION: {
                 ESP_LOGV(TAG, "ACTION aiid=%d val=%lu", cmd.piid, (unsigned long)cmd.value);
-                bool ok = do_miot_set(cmd.piid, cmd.value);
+                bool ok = do_miot_set(SIID_CHARGER, cmd.piid, cmd.value);
                 break;
             }
             case CMD_RECONNECT:
@@ -1182,7 +1185,7 @@ static bool handle_port_control(const char *port, const char *action) {
   else if (strcmp(port, "a") == 0) bit = 3;
   if (bit < 0) return false;
   bool on = (strcmp(action, "on") == 0);
-  BleCommand cmd = {CMD_PORT, (uint8_t)bit, uint32_t(on ? 1 : 0), 0};
+  BleCommand cmd = {CMD_PORT, SIID_CHARGER, (uint8_t)bit, uint32_t(on ? 1 : 0), 0};
   if (xQueueSend(urgent_queue, &cmd, pdMS_TO_TICKS(2000)) != pdTRUE) {
       ESP_LOGW(TAG, "PORT %s %s dropped (queue full)", port, action);
       return false;
@@ -1195,7 +1198,7 @@ static bool handle_port_control(const char *port, const char *action) {
 static bool handle_setting_set(int piid, int value) {
   if (g_state != BLE_READY) return false;
   if (piid <= 0 || piid >= 32) return false;
-  BleCommand cmd = {CMD_SET, (uint8_t)piid, (uint32_t)value, 0};
+  BleCommand cmd = {CMD_SET, SIID_CHARGER, (uint8_t)piid, (uint32_t)value, 0};
   if (xQueueSend(urgent_queue, &cmd, pdMS_TO_TICKS(2000)) != pdTRUE) {
       ESP_LOGW(TAG, "SET piid=%d dropped (queue full)", piid);
       return false;
@@ -1218,7 +1221,7 @@ static bool handle_protocol_toggle(const char *port, const char *protocol, bool 
           uint32_t val = g_protocol_extend_val;
           if (on) val |= (1 << map[i].bit);
           else val &= ~(1 << map[i].bit);
-          BleCommand cmd = {CMD_SET, 21, val, 0};
+          BleCommand cmd = {CMD_SET, SIID_CHARGER, 21, val, 0};
           if (xQueueSend(urgent_queue, &cmd, pdMS_TO_TICKS(2000)) != pdTRUE) {
               ESP_LOGW(TAG, "PROTO %s %s dropped (queue full)", port, protocol);
               return false;
@@ -1290,7 +1293,7 @@ void CuktechBle::loop() {
       this->last_cd_fetch_slow_ = now;
       static const uint8_t SLOW_PIIDS[] = {5, 6, 9, 10, 11, 12, 13, 15, 19, 20};
       for (int i = 0; i < sizeof(SLOW_PIIDS); i++) {
-          BleCommand c = {CMD_GET, SLOW_PIIDS[i], 0, 0};
+          BleCommand c = {CMD_GET, SIID_CHARGER, SLOW_PIIDS[i], 0, 0};
           xQueueSend(cmd_queue, &c, 0);
       }
   }
@@ -1299,7 +1302,7 @@ void CuktechBle::loop() {
       this->last_cd_fetch_fast_ = now;
       static const uint8_t FAST_PIIDS[] = {16, 21};
       for (int i = 0; i < sizeof(FAST_PIIDS); i++) {
-          BleCommand c = {CMD_GET, FAST_PIIDS[i], 0, 0};
+          BleCommand c = {CMD_GET, SIID_CHARGER, FAST_PIIDS[i], 0, 0};
           xQueueSend(cmd_queue, &c, 0);
       }
   }
@@ -1568,7 +1571,7 @@ bool CuktechBle::controlling_enabled() { return g_enabled; }
 
 void CuktechBle::factory_reset(void) {
   uint8_t piid = 1;
-  BleCommand cmd = {CMD_ACTION, piid, 0, 0};
+  BleCommand cmd = {CMD_ACTION, SIID_CHARGER, piid, 0, 0};
   if (xQueueSend(urgent_queue, &cmd, pdMS_TO_TICKS(2000)) != pdTRUE) {
       ESP_LOGW(TAG, "ACTION piid=%d dropped (queue full)", piid);
   }

@@ -16,6 +16,7 @@ enum CmdType {
 
 typedef struct {
     enum CmdType type;
+    uint8_t siid;
     uint8_t piid;
     uint32_t value;
     uint32_t poll_seq;

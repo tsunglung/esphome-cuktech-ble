@@ -53,7 +53,12 @@ typedef struct { uint8_t data[NOTIF_ITEM_SIZE]; size_t len; uint16_t conn_handle
 typedef struct { float voltage, current, power; uint8_t protocol, status; bool active; } PortData;
 
 typedef struct {
-    char firmware_version[20];
+    char manufacturer[16];
+    char model[32];
+    char device_id[16];
+    char fw_version[16];
+    char fserial_number[16];
+    char firmware_version[16];
     char protocol_version[2];
     char chip_name[16];
 } DeviceInfo;

@@ -28,6 +28,7 @@
 #define AUTH_ACTIVATE        0x11
 
 // --- SIID / PIID ---
+#define SIID_DEVICE_INFO     1
 #define SIID_CHARGER         2
 
 // --- TLV Type IDs ---
