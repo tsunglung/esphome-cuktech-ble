@@ -66,6 +66,7 @@ static void do_set_state(BLEState s);
 
 // Definition of the cache declared above.
 std::string g_device_name_cache;
+static CuktechModel g_model = CUKTECH_AD1204;
 
 static BLEState g_state = BLE_IDLE;
 static uint16_t g_conn_handle = 0xFFFF;
@@ -115,7 +116,35 @@ __attribute__((unused)) static void log_hex(const char *prefix, const uint8_t *b
     snprintf(&hex[i * 3], 4, "%02x ", buf[i]);
   }
   hex[to_print > 0 ? (to_print * 3 - 1) : 0] = '\0';
-  ESP_LOGV(TAG, "%s len=%u: %s%s", prefix, (unsigned) len, hex, len > 64 ? " …" : "");
+  ESP_LOGV(prefix, "len=%u: %s%s", (unsigned) len, hex, len > 64 ? " …" : "");
+}
+
+static void hex_to_ascii(const char *hex_str, char *ascii_str) {
+    size_t len = strlen(hex_str);
+    size_t ascii_len = 0;
+
+    // Process two hex characters at a time
+    for (size_t i = 0; i < len; i += 2) {
+        // Read 2 characters as a hexadecimal byte
+        sscanf(&hex_str[i], "%2hhx", &ascii_str[ascii_len++]);
+    }
+
+    // Add null terminator to make it a valid C string
+    ascii_str[ascii_len] = '\0';
+}
+
+static bool convert_str(const char *hex, char *value, uint8_t len) {
+    uint8_t expected_checksum = 0;
+    uint8_t vlen = (len / 2) - 1;
+
+    hex_to_ascii(hex, value);
+    for (uint16_t i = 0; i < vlen; i++) {
+        expected_checksum += value[i];
+    }
+    if (expected_checksum == value[vlen]) {
+      return true;
+    }
+    return false;
 }
 
 /* ============================================================
@@ -362,13 +391,21 @@ static void do_set_state(BLEState s) {
   g_state = s;
   ESP_LOGV(TAG, "State: %d -> %d", (int)old, (int)s);
   if (g_state == BLE_READY) {
+      if (g_model == CUKTECH_C2C615) {
+        static const uint8_t INIT_PIIDS[] = {1, 2, 3};
+        for (int i = 0; i < sizeof(INIT_PIIDS); i++) {
+            BleCommand c = {CMD_GET, SIID_CHARGER, INIT_PIIDS[i], 0, 0};
+            xQueueSend(cmd_queue, &c, 0);
+        }
+      } else {
       // Fetch settings on initial BLE connect so frontend shows
       // actual values instead of hardcoded defaults, and protocol
       // detection uses real hardware protocol codes (PIID 17/18).
-      static const uint8_t INIT_PIIDS[] = {5, 6, 15, 21, 17, 18};
-      for (int i = 0; i < sizeof(INIT_PIIDS); i++) {
-          BleCommand c = {CMD_GET, SIID_CHARGER, INIT_PIIDS[i], 0, 0};
-          xQueueSend(cmd_queue, &c, 0);
+        static const uint8_t INIT_PIIDS[] = {5, 6, 15, 21, 17, 18};
+        for (int i = 0; i < sizeof(INIT_PIIDS); i++) {
+            BleCommand c = {CMD_GET, SIID_CHARGER, INIT_PIIDS[i], 0, 0};
+            xQueueSend(cmd_queue, &c, 0);
+        }
       }
   }
 }
@@ -435,6 +472,51 @@ static void do_parse_port(uint8_t piid, const uint8_t *pt, size_t pt_len) {
                     g_ports[idx].protocol, g_ports[idx].status, false};
     if (xQueueSend(result_queue, &r, 0) != pdTRUE)
       ESP_LOGW(TAG, "result_queue full, dropping push");
+  }
+}
+
+static void do_parse_prop_change(uint8_t piid, const uint8_t *pt, size_t pt_len) {
+  char value[14];
+  char hex[28];
+  switch (pt[7]) {
+    case 5:
+        if (pt_len >= 33) {
+          memcpy(hex, &pt[11], 22);
+          if(convert_str(hex, value, 22)) {
+            g_ports[0].percent = value[3];
+            g_ports[1].percent = value[4];
+          }
+        }
+        break;
+    case 9:
+        if (pt_len >= 39) {
+          memcpy(hex, &pt[11], 28);
+          if (convert_str(hex, value, 28)) {
+            g_ports[0].vid = (value[1] & 0xFF) << 8 | (value[2] & 0xFF);
+            g_ports[1].vid = (value[7] & 0xFF) << 8 | (value[8] & 0xFF);
+          }
+        }
+        break;
+    case 12:
+        if (pt_len >= 33) {
+          uint8_t new_pt[15] = {0};
+          memcpy(hex, &pt[11], 22);
+          if (convert_str(hex, value, 22)) {
+            log_hex(TAG, (uint8_t*)value, 11);
+            new_pt[14] = ((value[1] & 0xFF) << 8 | (value[2] & 0xFF)) / 100.0;
+            new_pt[13] = ((value[3] & 0xFF) << 8 | (value[4] & 0xFF)) / 100.0;
+            new_pt[11] = (new_pt[14] > 1) ? 0x1 : 0x0;
+            do_parse_port(1, new_pt, 15);
+            new_pt[14] = ((value[5] & 0xFF) << 8 | (value[6] & 0xFF)) / 100.0;
+            new_pt[13] = ((value[7] & 0xFF) << 8 | (value[8] & 0xFF)) / 100.0;
+            new_pt[11] = (new_pt[14] > 1) ? 0x1 : 0x0;
+            do_parse_port(2, new_pt, 15);
+          }
+        }
+        break;
+    default:
+          ESP_LOGE(TAG, "uknown prop %d changed", pt[7]);
+        break;
   }
 }
 
@@ -621,10 +703,14 @@ static int start_auth(void) {
  * Handle CMD_RECV notifications (push + async response matching)
  * ============================================================ */
 static void do_process_decrypted(const uint8_t *pt, size_t pt_len) {
-  if (pt_len >= 12 && pt[4] == 0x04 && pt[7] >= 1 && pt[7] <= 4)
-    do_parse_port(pt[7], pt, pt_len);   // port push
-  else
+  if (pt_len >= 12 && pt[4] == PROP_CHANGED) {
+    if (g_model == CUKTECH_AD1204 && pt[7] >= 1 && pt[7] <= 4)
+      do_parse_port(pt[7], pt, pt_len);   // port push
+    else if (g_model == CUKTECH_C2C615 && (pt[7] == 5 || pt[7] == 9 || pt[7] == 12))
+      do_parse_prop_change(pt[7], pt, pt_len);
+  } else {
     do_pending_match(pt, pt_len);        // command response
+  }
 }
 
 static void do_handle_cmd_recv(void) {
@@ -746,9 +832,14 @@ static bool do_recv_cmd(uint8_t *out, size_t *ol, uint32_t ms) {
         if (buf[2] == 0x02 && blen >= 4) {
             uint8_t tmp[256]; size_t tlen = 0;
             if (!decrypt_response(&g_keys, buf + 4, blen - 4, tmp, &tlen)) continue;
-            if (tlen >= 12 && tmp[4] == 0x04 && tmp[7] >= 1 && tmp[7] <= 4) {
-                on_wru_nr(g_cmd_recv_handle, (uint8_t[]){0,0,3,0}, 4);
-                do_parse_port(tmp[7], tmp, tlen); continue;
+            if (tlen >= 12 && tmp[4] == PROP_CHANGED) {
+                if (g_model == CUKTECH_AD1204 && tmp[7] >= 1 && tmp[7] <= 4) {
+                  on_wru_nr(g_cmd_recv_handle, (uint8_t[]){0,0,3,0}, 4);
+                  do_parse_port(tmp[7], tmp, tlen); continue;
+                } else if (g_model == CUKTECH_C2C615 && (tmp[7] == 5 || tmp[7] == 9 || tmp[7] == 12)) {
+                  on_wru_nr(g_cmd_recv_handle, (uint8_t[]){0,0,3,0}, 4);
+                  do_parse_prop_change(tmp[7], tmp, tlen);
+                }
             }
             on_wru_nr(g_cmd_recv_handle, (uint8_t[]){0,0,3,0}, 4);
             *ol = (tlen > 256) ? 256 : tlen; memcpy(out, tmp, *ol); return true;
@@ -770,6 +861,7 @@ static bool do_recv_cmd(uint8_t *out, size_t *ol, uint32_t ms) {
 
 bool do_miot_get(uint8_t siid, uint8_t piid, uint32_t* value) {
     uint8_t buf[16] = {0};
+    uint8_t retry = 6;
 
     do_drain_cmd_recv_pushes();
     //props: list of (siid, piid). Frame: len|0x2000, tid, op=2, count, [siid u8, piid u16]*
@@ -779,8 +871,16 @@ bool do_miot_get(uint8_t siid, uint8_t piid, uint32_t* value) {
     g_seq = (g_seq + 1) & 0xFF;
     if (!do_send_enc_sync(buf, 12)) return false;
     uint8_t resp[256]; size_t rl = 0;
-    if (!do_recv_cmd(resp, &rl, 8000)) return false;
-    if (rl < 14 || resp[4] != 0x03 || resp[7] != piid) return false;
+    while (retry--) {
+        if (!do_recv_cmd(resp, &rl, 8000)) return false;
+        if (resp[4] == PROP_CHANGED) {
+          continue;
+        }
+        if (resp[4] == CMD_GET_RESP && resp[6] == siid && resp[7] == piid) {
+          break;
+        }
+    }
+    if (retry == 0 || resp[6] != siid || resp[7] != piid) return false;
     uint8_t vlen = resp[11];
     if (vlen >= 4 && rl >= 17) *value = resp[13] | (resp[14] << 8) | (resp[15] << 16) | (resp[16] << 24);
     else if (vlen >= 1 && rl >= 14) *value = resp[13];
@@ -806,10 +906,14 @@ bool do_miot_set(uint8_t siid, uint8_t piid, uint32_t value) {
     uint8_t resp[256]; size_t rl = 0;
     if (!do_recv_cmd(resp, &rl, 3000)) return false;
     bool ok = false;
-    if (rl >= 6 && resp[4] == 0x01) {
+    if (rl >= 6 && resp[4] == CMD_SET_RESP) {
         ok = true;
         if (do_recv_cmd(resp, &rl, 2000)) { if (rl >= 8 && resp[4] == 0x04) ok = (resp[7] == piid); }
-    } else if (rl >= 8 && resp[4] == 0x04) { ok = (resp[7] == piid); }
+    } else if (rl < 12 && rl >= 8 && resp[4] == PROP_CHANGED) { ok = (resp[7] == piid); }
+    else if (rl >= 12 && resp[4] == PROP_CHANGED) {
+        ok = true;
+        if (do_recv_cmd(resp, &rl, 2000)) { if (rl >= 8 && resp[4] == 0x04) ok = (resp[7] == piid); }
+    } // protocol 2.3
     NotifItem item;
     QueueHandle_t qs[] = {g_q_auth_ctrl, g_q_auth_data, g_q_cmd_send};
     for (int i = 0; i < 3; i++) while (xQueueReceive(qs[i], &item, 0) == pdTRUE) {}
@@ -941,6 +1045,7 @@ static void start_disconnect(void) {
   ble_gap_disc_cancel();
   /* Non-reentrant guard: prevent overlapping disconnect sequences */
   static bool _disconnecting = false;
+  sprintf(g_ble_status, "%s", "disconnected");
   if (_disconnecting) { do_drain_all_queues(); return; }
   if (!g_connected) { do_drain_all_queues(); return; }
   _disconnecting = true;
@@ -1237,6 +1342,8 @@ static bool handle_protocol_toggle(const char *port, const char *protocol, bool 
 void CuktechBle::setup() {
   g_instance = this;
   g_device_name_cache = this->device_name_;
+  if (this->model_.compare("c2c615") == 0)
+    g_model = CUKTECH_C2C615;
 
   ESP_LOGI(TAG, "Initializing Cuktech BLE bridge (v0.1)");
 
@@ -1291,19 +1398,30 @@ void CuktechBle::loop() {
   // Slow poll (90s): scene mode, screen time, countdown, trickle
   if ((g_state == BLE_READY) && (now - this->last_cd_fetch_slow_ >= 90000)) {
       this->last_cd_fetch_slow_ = now;
-      static const uint8_t SLOW_PIIDS[] = {5, 6, 9, 10, 11, 12, 13, 15, 19, 20};
-      for (int i = 0; i < sizeof(SLOW_PIIDS); i++) {
-          BleCommand c = {CMD_GET, SIID_CHARGER, SLOW_PIIDS[i], 0, 0};
-          xQueueSend(cmd_queue, &c, 0);
+      if (g_model == CUKTECH_C2C615) {
+      } else {
+        static const uint8_t SLOW_PIIDS[] = {5, 6, 9, 10, 11, 12, 13, 15, 19, 20};
+        for (int i = 0; i < sizeof(SLOW_PIIDS); i++) {
+            BleCommand c = {CMD_GET, SIID_CHARGER, SLOW_PIIDS[i], 0, 0};
+            xQueueSend(cmd_queue, &c, 0);
+        }
       }
   }
   // Fast poll (20s): port control (16) and protocol extends (21) change via SET
   if ((g_state == BLE_READY) && (now - this->last_cd_fetch_fast_ >= 20000)) {
       this->last_cd_fetch_fast_ = now;
-      static const uint8_t FAST_PIIDS[] = {16, 21};
-      for (int i = 0; i < sizeof(FAST_PIIDS); i++) {
-          BleCommand c = {CMD_GET, SIID_CHARGER, FAST_PIIDS[i], 0, 0};
-          xQueueSend(cmd_queue, &c, 0);
+      if (g_model == CUKTECH_C2C615) {
+        static const uint8_t SLOW_PIIDS[] = {1, 2, 3};
+        for (int i = 0; i < sizeof(SLOW_PIIDS); i++) {
+            BleCommand c = {CMD_GET, SIID_CHARGER, SLOW_PIIDS[i], 0, 0};
+            xQueueSend(cmd_queue, &c, 0);
+        }
+      } else {
+        static const uint8_t FAST_PIIDS[] = {16, 21};
+        for (int i = 0; i < sizeof(FAST_PIIDS); i++) {
+            BleCommand c = {CMD_GET, SIID_CHARGER, FAST_PIIDS[i], 0, 0};
+            xQueueSend(cmd_queue, &c, 0);
+        }
       }
   }
 
@@ -1321,77 +1439,97 @@ void CuktechBle::loop() {
 
 void CuktechBle::publish_settings_(bool force) {
   if (g_connected || force) {
-    if (this->scene_mode_select_) {
-      this->scene_mode_select_->publish_state(g_settings[5] - 1);
-    }
-    if (this->screen_saver_timeout_select_) {
-      this->screen_saver_timeout_select_->publish_state(g_settings[6] - 1);
-    }
-    if (this->c1_countdown_number_) {
-      this->c1_countdown_number_->publish_state(g_settings[9]);
-    }
-    if (this->c2_countdown_number_) {
-      this->c2_countdown_number_->publish_state(g_settings[10]);
-    }
-    if (this->c3_countdown_number_) {
-      this->c3_countdown_number_->publish_state(g_settings[11]);
-    }
-    if (this->a_countdown_number_) {
-      this->a_countdown_number_->publish_state(g_settings[12]);
-    }
-    if (this->language_select_) {
-      this->language_select_->publish_state(g_settings[13]);
-    }
-    if (this->a_always_on_switch_) {
-      this->a_always_on_switch_->publish_state(g_settings[15]);
-    }
-    if (this->screen_saver_switch_) {
-      this->screen_saver_switch_->publish_state(g_settings[19]);
-    }
-    if (this->screen_dir_lock_switch_) {
-      this->screen_dir_lock_switch_->publish_state(g_settings[20]);
-    }
-    if (this->c1_port_switch_) {
-      this->c1_port_switch_->publish_state(g_settings[16] & (0x1 << 0));
-    }
-    if (this->c2_port_switch_) {
-      this->c2_port_switch_->publish_state(g_settings[16] & (0x1 << 1));
-    }
-    if (this->c3_port_switch_) {
-      this->c3_port_switch_->publish_state(g_settings[16] & (0x1 << 2));
-    }
-    if (this->a_port_switch_) {
-      this->a_port_switch_->publish_state(g_settings[16] & (0x1 << 3));
-    }
-    if (this->c1_pd_switch_) {
-      this->c1_pd_switch_->publish_state(g_settings[21] & (0x1 << 0));
-    }
-    if (this->c1_pps_switch_) {
-      this->c1_pps_switch_->publish_state(g_settings[21] & (0x1 << 1));
-    }
-    if (this->c1_ufcs_switch_) {
-      this->c1_ufcs_switch_->publish_state(g_settings[21] & (0x1 << 2));
-    }
-    if (this->c2_pd_switch_) {
-      this->c2_pd_switch_->publish_state(g_settings[21] & (0x1 << 8));
-    }
-    if (this->c2_pps_switch_) {
-      this->c2_pps_switch_->publish_state(g_settings[21] & (0x1 << 9));
-    }
-    if (this->c2_ufcs_switch_) {
-      this->c2_ufcs_switch_->publish_state(g_settings[21] & (0x1 << 10));
-    }
-    if (this->c3_ufcs_switch_) {
-      this->c3_ufcs_switch_->publish_state(g_settings[21] & (0x1 << 16));
-    }
-    if (this->c3_scp_switch_) {
-      this->c3_scp_switch_->publish_state(g_settings[21] & (0x1 << 17));
-    }
-    if (this->a_ufcs_switch_) {
-      this->a_ufcs_switch_->publish_state(g_settings[21] & (0x1 << 24));
-    }
-    if (this->a_scp_switch_) {
-      this->a_scp_switch_->publish_state(g_settings[21] & (0x1 << 25));
+    if (g_model == CUKTECH_C2C615) {
+      if (this->screen_rotation_interval_select_) {
+        uint8_t value = 0;
+        if (g_settings[3] == 0)
+           value = 0;
+        else if (g_settings[3] == 2)
+           value = 1;
+        else if (g_settings[3] == 5)
+           value = 2;
+        else if (g_settings[3] == 8)
+           value = 3;
+        else if (g_settings[3] == 10)
+           value = 4;
+        this->screen_rotation_interval_select_->publish_state(value);
+      }
+      if (this->brightness_number_) {
+        this->brightness_number_->publish_state(g_settings[2]);
+      }
+    } else {
+      if (this->scene_mode_select_) {
+        this->scene_mode_select_->publish_state(g_settings[5] - 1);
+      }
+      if (this->screen_saver_timeout_select_) {
+        this->screen_saver_timeout_select_->publish_state(g_settings[6] - 1);
+      }
+      if (this->c1_countdown_number_) {
+        this->c1_countdown_number_->publish_state(g_settings[9]);
+      }
+      if (this->c2_countdown_number_) {
+        this->c2_countdown_number_->publish_state(g_settings[10]);
+      }
+      if (this->c3_countdown_number_) {
+        this->c3_countdown_number_->publish_state(g_settings[11]);
+      }
+      if (this->a_countdown_number_) {
+        this->a_countdown_number_->publish_state(g_settings[12]);
+      }
+      if (this->language_select_) {
+        this->language_select_->publish_state(g_settings[13]);
+      }
+      if (this->a_always_on_switch_) {
+        this->a_always_on_switch_->publish_state(g_settings[15]);
+      }
+      if (this->screen_saver_switch_) {
+        this->screen_saver_switch_->publish_state(g_settings[19]);
+      }
+      if (this->screen_dir_lock_switch_) {
+        this->screen_dir_lock_switch_->publish_state(g_settings[20]);
+      }
+      if (this->c1_port_switch_) {
+        this->c1_port_switch_->publish_state(g_settings[16] & (0x1 << 0));
+      }
+      if (this->c2_port_switch_) {
+        this->c2_port_switch_->publish_state(g_settings[16] & (0x1 << 1));
+      }
+      if (this->c3_port_switch_) {
+        this->c3_port_switch_->publish_state(g_settings[16] & (0x1 << 2));
+      }
+      if (this->a_port_switch_) {
+        this->a_port_switch_->publish_state(g_settings[16] & (0x1 << 3));
+      }
+      if (this->c1_pd_switch_) {
+        this->c1_pd_switch_->publish_state(g_settings[21] & (0x1 << 0));
+      }
+      if (this->c1_pps_switch_) {
+        this->c1_pps_switch_->publish_state(g_settings[21] & (0x1 << 1));
+      }
+      if (this->c1_ufcs_switch_) {
+        this->c1_ufcs_switch_->publish_state(g_settings[21] & (0x1 << 2));
+      }
+      if (this->c2_pd_switch_) {
+        this->c2_pd_switch_->publish_state(g_settings[21] & (0x1 << 8));
+      }
+      if (this->c2_pps_switch_) {
+        this->c2_pps_switch_->publish_state(g_settings[21] & (0x1 << 9));
+      }
+      if (this->c2_ufcs_switch_) {
+        this->c2_ufcs_switch_->publish_state(g_settings[21] & (0x1 << 10));
+      }
+      if (this->c3_ufcs_switch_) {
+        this->c3_ufcs_switch_->publish_state(g_settings[21] & (0x1 << 16));
+      }
+      if (this->c3_scp_switch_) {
+        this->c3_scp_switch_->publish_state(g_settings[21] & (0x1 << 17));
+      }
+      if (this->a_ufcs_switch_) {
+        this->a_ufcs_switch_->publish_state(g_settings[21] & (0x1 << 24));
+      }
+      if (this->a_scp_switch_) {
+        this->a_scp_switch_->publish_state(g_settings[21] & (0x1 << 25));
+      }
     }
     if (this->chipset_text_sensor_) {
       this->chipset_text_sensor_->publish_state(g_device_info.chip_name);
@@ -1413,20 +1551,10 @@ void CuktechBle::publish_portdata_(bool force) {
   }
   if (g_connected || force) {
     if (this->c1_active_binary_sensor_) {
-      this->c1_active_binary_sensor_->publish_state(g_ports[0].status);
+      this->c1_active_binary_sensor_->publish_state(g_ports[0].active);
     }
     if (this->c2_active_binary_sensor_) {
-      this->c2_active_binary_sensor_->publish_state(g_ports[1].status);
-    }
-    if (this->c3_active_binary_sensor_) {
-      this->c3_active_binary_sensor_->publish_state(g_ports[2].status);
-    }
-    if (this->a_active_binary_sensor_) {
-      this->a_active_binary_sensor_->publish_state(g_ports[3].status);
-    }
-    if (this->total_power_sensor_) {
-      this->total_power_sensor_->publish_state(
-        g_ports[0].power + g_ports[1].power + g_ports[2].power + g_ports[3].power);
+      this->c2_active_binary_sensor_->publish_state(g_ports[1].active);
     }
     if (this->c1_power_sensor_) {
       this->c1_power_sensor_->publish_state(g_ports[0].power);
@@ -1434,23 +1562,11 @@ void CuktechBle::publish_portdata_(bool force) {
     if (this->c2_power_sensor_) {
       this->c2_power_sensor_->publish_state(g_ports[1].power);
     }
-    if (this->c3_power_sensor_) {
-      this->c3_power_sensor_->publish_state(g_ports[2].power);
-    }
-    if (this->a_power_sensor_) {
-      this->a_power_sensor_->publish_state(g_ports[3].power);
-    }
     if (this->c1_current_sensor_) {
       this->c1_current_sensor_->publish_state(g_ports[0].current);
     }
     if (this->c2_current_sensor_) {
       this->c2_current_sensor_->publish_state(g_ports[1].current);
-    }
-    if (this->c3_current_sensor_) {
-      this->c3_current_sensor_->publish_state(g_ports[2].current);
-    }
-    if (this->a_current_sensor_) {
-      this->a_current_sensor_->publish_state(g_ports[3].current);
     }
     if (this->c1_voltage_sensor_) {
       this->c1_voltage_sensor_->publish_state(g_ports[0].voltage);
@@ -1458,11 +1574,40 @@ void CuktechBle::publish_portdata_(bool force) {
     if (this->c2_voltage_sensor_) {
       this->c2_voltage_sensor_->publish_state(g_ports[1].voltage);
     }
-    if (this->c3_voltage_sensor_) {
-      this->c3_voltage_sensor_->publish_state(g_ports[2].voltage);
-    }
-    if (this->a_voltage_sensor_) {
-      this->a_voltage_sensor_->publish_state(g_ports[3].voltage);
+    if (g_model == CUKTECH_C2C615) {
+      if (this->total_power_sensor_) {
+        this->total_power_sensor_->publish_state(
+          g_ports[0].power + g_ports[1].power);
+      }
+    } else {
+      if (this->c3_active_binary_sensor_) {
+        this->c3_active_binary_sensor_->publish_state(g_ports[2].active);
+      }
+      if (this->a_active_binary_sensor_) {
+        this->a_active_binary_sensor_->publish_state(g_ports[3].active);
+      }
+      if (this->total_power_sensor_) {
+        this->total_power_sensor_->publish_state(
+          g_ports[0].power + g_ports[1].power + g_ports[2].power + g_ports[3].power);
+      }
+      if (this->c3_power_sensor_) {
+        this->c3_power_sensor_->publish_state(g_ports[2].power);
+      }
+      if (this->a_power_sensor_) {
+        this->a_power_sensor_->publish_state(g_ports[3].power);
+      }
+      if (this->c3_current_sensor_) {
+        this->c3_current_sensor_->publish_state(g_ports[2].current);
+      }
+      if (this->a_current_sensor_) {
+        this->a_current_sensor_->publish_state(g_ports[3].current);
+      }
+      if (this->c3_voltage_sensor_) {
+        this->c3_voltage_sensor_->publish_state(g_ports[2].voltage);
+      }
+      if (this->a_voltage_sensor_) {
+        this->a_voltage_sensor_->publish_state(g_ports[3].voltage);
+      }
     }
   }
 
@@ -1474,13 +1619,15 @@ void CuktechBle::publish_portdata_(bool force) {
     const char *proto = g_ports[1].active ? get_proto_name(g_ports[1].protocol) : "idle";
     this->c2_protocol_text_sensor_->publish_state(proto);
   }
-  if (this->c3_protocol_text_sensor_) {
-    const char *proto = g_ports[2].active ? get_proto_name(g_ports[2].protocol) : "idle";
-    this->c3_protocol_text_sensor_->publish_state(proto);
-  }
-  if (this->a_protocol_text_sensor_) {
-    const char *proto = g_ports[3].active ? get_proto_name(g_ports[3].protocol) : "idle";
-    this->a_protocol_text_sensor_->publish_state(proto);
+  if (g_model == CUKTECH_AD1204) {
+    if (this->c3_protocol_text_sensor_) {
+      const char *proto = g_ports[2].active ? get_proto_name(g_ports[2].protocol) : "idle";
+      this->c3_protocol_text_sensor_->publish_state(proto);
+    }
+    if (this->a_protocol_text_sensor_) {
+      const char *proto = g_ports[3].active ? get_proto_name(g_ports[3].protocol) : "idle";
+      this->a_protocol_text_sensor_->publish_state(proto);
+    }
   }
 
   if (this->ble_status_text_sensor_) {
@@ -1491,6 +1638,7 @@ void CuktechBle::publish_portdata_(bool force) {
 void CuktechBle::dump_config() {
   ESP_LOGCONFIG(TAG, "Cuktech BLE Bridge:");
   ESP_LOGCONFIG(TAG, "  Device name: %s", this->device_name_.c_str());
+  ESP_LOGCONFIG(TAG, "  Model: %s", this->model_.c_str());
   ESP_LOGCONFIG(TAG, "  BLE Mac: %s", this->ble_mac_.c_str());
   ESP_LOGCONFIG(TAG, "  BLE Token: %s", this->ble_token_.c_str());
   ESP_LOGCONFIG(TAG, "  BLE Key: %s", this->ble_key_.c_str());
@@ -1667,6 +1815,11 @@ void CuktechBle::set_a_always_on(bool enable) {
   handle_setting_set(15, enable? 1: 0);
 }
 
+// c2c615
+void CuktechBle::set_screen_onoff(bool enable) {
+  handle_setting_set(1, enable? 1: 0);
+}
+
 void CuktechBle::set_c1_countdown(float value) {
   handle_setting_set(9, (uint16_t)value);
 }
@@ -1683,6 +1836,11 @@ void CuktechBle::set_a_countdown(float value) {
   handle_setting_set(12, (uint16_t)value);
 }
 
+// c2c615
+void CuktechBle::set_brightness(float value) {
+  handle_setting_set(2, (uint16_t)value);
+}
+
 void CuktechBle::set_screen_saver_timeout(const char *state) {
   int value = 0;
   if (!strcmp(state, "1 Min"))
@@ -1697,6 +1855,23 @@ void CuktechBle::set_screen_saver_timeout(const char *state) {
     value = 0;
   handle_setting_set(6, (uint16_t)value + 1);
 }
+
+// c2c615
+void CuktechBle::set_screen_rotation_interval(const char *state) {
+  int value = 0;
+  if (!strcmp(state, "10 s"))
+    value = 10;
+  else if (!strcmp(state, "8 s"))
+    value = 8;
+  else if (!strcmp(state, "5 s"))
+    value = 5;
+  else if (!strcmp(state, "2 s"))
+    value = 2;
+  else if (!strcmp(state, "Off"))
+    value = 0;
+  handle_setting_set(3, (uint16_t)value);
+}
+
 
 }  // namespace cuktech_ble
 }  // namespace esphome

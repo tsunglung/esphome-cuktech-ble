@@ -32,6 +32,7 @@ C3UFCSSwitch = cuktech_ble_ns.class_("C3UFCSSwitch", switch.Switch)
 ASCPSwitch = cuktech_ble_ns.class_("ASCPSwitch", switch.Switch)
 AUFCSSwitch = cuktech_ble_ns.class_("AUFCSSwitch", switch.Switch)
 AAlwaysOnSwitch = cuktech_ble_ns.class_("AAlwaysOnSwitch", switch.Switch)
+ScreenOnOffSwitch = cuktech_ble_ns.class_("ScreenOnOffSwitch", switch.Switch)
 
 CONF_ENABLE_CONTROLLING = "enable_controlling"
 CONF_SCREEN_DIR_LOCK = "screen_dir_lock"
@@ -51,6 +52,7 @@ CONF_C3_UFCS = "c3_ufcs"
 CONF_A_SCP = "a_scp"
 CONF_A_UFCS = "a_ufcs"
 CONF_A_ALWAYS_ON = "a_always_on"
+CONF_SCREEN_ONOFF = "screen_onoff"
 
 DEFAULT_ICON = "mdi:toggle-switch-variant"
 ICONS = {
@@ -71,7 +73,8 @@ ICONS = {
     CONF_C3_UFCS: "mdi:usb",
     CONF_A_SCP: "mdi:usb",
     CONF_A_UFCS: "mdi:usb",
-    CONF_A_ALWAYS_ON: "mdi:usb-port"
+    CONF_A_ALWAYS_ON: "mdi:usb-port",
+    CONF_SCREEN_ONOFF: "mdi:cellphone-screenshot"
 }
 
 _SWITCHS = {
@@ -93,6 +96,7 @@ _SWITCHS = {
     CONF_A_SCP: ASCPSwitch,
     CONF_A_UFCS: AUFCSSwitch,
     CONF_A_ALWAYS_ON: AAlwaysOnSwitch,
+    CONF_SCREEN_ONOFF: ScreenOnOffSwitch,
 }
 
 COMPONENT_SCHEMA = cv.Schema(

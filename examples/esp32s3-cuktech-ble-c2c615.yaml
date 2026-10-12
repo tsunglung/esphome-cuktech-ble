@@ -1,0 +1,255 @@
+substitutions:
+  devicename: cuktech-ble
+  upper_devicename: "M5stack ESP32 S3 ATOM Lite"
+  cuktech_ble_devicename: "Cuktech BLE Bridge"
+  led_pin: GPIO35
+
+esphome:
+  name: ${devicename}
+  friendly_name: ${upper_devicename}
+  comment: ${dehumidifier_devicename} via ${upper_devicename}
+  project:
+    name: "Cuktech.njcuk_fitting_ad1204"
+    version: "1.1.0"
+#  name_add_mac_suffix: true
+  devices:
+  - id: cuktech_ble_device
+    name: ${cuktech_ble_devicename}
+  on_boot:
+    - priority: 500
+      then:
+        - lambda: 'id(cuktech_ble_bridge).set_ble_mac(id(ble_mac).state.c_str());'
+        - lambda: 'id(cuktech_ble_bridge).set_ble_token(id(ble_token).state.c_str());'
+        - lambda: 'id(cuktech_ble_bridge).set_ble_key(id(ble_key).state.c_str());'
+
+esp32:
+  board: esp32-s3-devkitc-1
+  framework:
+    type: esp-idf
+    version: recommended
+    sdkconfig_options:
+      CONFIG_LWIP_MAX_SOCKETS: "23"
+      CONFIG_FATFS_LFN_STACK: "y"
+      # NimBLE host stack with peripheral + GATT-client roles.
+      # Bluedroid is disabled because the two stacks are mutually exclusive.
+      CONFIG_BT_ENABLED: y
+      CONFIG_BT_NIMBLE_ENABLED: y
+      CONFIG_BT_BLUEDROID_ENABLED: n
+      CONFIG_BT_CONTROLLER_ENABLED: y
+      CONFIG_BTDM_CTRL_MODE_BLE_ONLY: y
+      CONFIG_BTDM_CTRL_MODE_BR_EDR_ONLY: n
+      CONFIG_BTDM_CTRL_MODE_BTDM: n
+      CONFIG_BT_NIMBLE_MAX_CONNECTIONS: "1"
+      CONFIG_BT_NIMBLE_ROLE_PERIPHERAL: y
+      CONFIG_BT_NIMBLE_ROLE_BROADCASTER: y
+      # Central role enables the GATT client API (ble_gattc_*).
+      # The eBike connects to us as Central, but on that connection we act as
+      # GATT *client* against the eBike's GATT *server* on the Live Data Service.
+      CONFIG_BT_NIMBLE_ROLE_CENTRAL: y
+      CONFIG_BT_NIMBLE_ROLE_OBSERVER: y
+      CONFIG_BT_NIMBLE_SM_LEGACY: n
+      CONFIG_BT_NIMBLE_SM_SC: y
+      CONFIG_BT_NIMBLE_NVS_PERSIST: y
+      CONFIG_BT_NIMBLE_ATT_PREFERRED_MTU: "247"
+  flash_size: 8MB
+
+#psram:
+#  mode: quad
+
+external_components:
+  - source: github://tsunglung/esphome-cuktech-ble@main
+    components: [ cuktech_ble ]
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  min_auth_mode: WPA2
+
+  # Enable fallback hotspot (captive portal) in case wifi connection fails
+  ap:
+    ssid: ${devicename}
+    password: "12345678"
+
+captive_portal:
+
+# Enable logging
+logger:
+
+# Enable Home Assistant API
+api:
+
+ota:
+  - platform: esphome
+
+web_server:
+  version: 3
+
+cuktech_ble:
+  id: cuktech_ble_bridge
+  device_name: "ESPHome Cuktech BLE Bridge"
+  model: "C2C615"
+
+binary_sensor:
+  - platform: status
+    name: "Status"
+  - platform: cuktech_ble
+    connected:
+      name: "Connection Status"
+      device_id: cuktech_ble_device
+    c1_active:
+      name: "Port C1 Active"
+      device_id: cuktech_ble_device
+    c2_active:
+      name: "Port C2 Active"
+      device_id: cuktech_ble_device
+
+button:
+  - platform: safe_mode
+    name: "Safe Mode Boot"
+    entity_category: diagnostic
+  - platform: restart
+    name: "Restart"
+    id: button_restart
+
+  - platform: cuktech_ble
+    factory_reset:
+      name: "Factory Reset"
+      device_id: cuktech_ble_device
+
+light:
+  - platform: esp32_rmt_led_strip
+    chipset: WS2812
+    pin: ${led_pin}
+    num_leds: 4
+    rgb_order: GRB
+    id: led
+    restore_mode: RESTORE_DEFAULT_OFF
+    name: "RGB LEDs"
+
+number:
+  - platform: cuktech_ble
+    c1_countdown:
+      name: "Port C1 Countdown"
+      device_id: cuktech_ble_device
+    c2_countdown:
+      name: "Port C2 Countdown"
+      device_id: cuktech_ble_device
+
+select:
+  - platform: cuktech_ble
+    screen_rotation_interval:
+      name: "Screen Rotation Interval"
+      device_id: cuktech_ble_device
+
+sensor:
+  - platform: wifi_signal
+    name: "WiFi Signal"
+    update_interval: 60s
+
+  - platform: uptime
+    name: "Uptime"
+    filters:
+      - lambda: return x / 3600;
+    unit_of_measurement: "h"
+    accuracy_decimals: 1
+
+  - platform: internal_temperature
+    name: "Internal Temperature"
+
+  - platform: cuktech_ble
+    total_power:
+      name: "Total Power"
+      device_id: cuktech_ble_device
+    c1_power:
+      name: "Port C1 Power"
+      id: c1_power
+      device_id: cuktech_ble_device
+    c2_power:
+      name: "Port C2 Power"
+      id: c2_power
+      device_id: cuktech_ble_device
+    c1_current:
+      name: "Port C1 Current"
+      device_id: cuktech_ble_device
+    c2_current:
+      name: "Port C2 Current"
+      device_id: cuktech_ble_device
+    c1_voltage:
+      name: "Port C1 Voltage"
+      device_id: cuktech_ble_device
+    c2_voltage:
+      name: "Port C2 Voltage"
+      device_id: cuktech_ble_device
+
+switch:
+  - platform: cuktech_ble
+    enable_controlling:
+      name: "Connection Controlling"
+      restore_mode: RESTORE_DEFAULT_ON
+      id: cuktech_controlling
+      device_id: cuktech_ble_device
+      on_turn_on:
+        then:
+          - lambda: 'id(cuktech_ble_bridge).set_ble_mac(id(ble_mac).state.c_str());'
+          - lambda: 'id(cuktech_ble_bridge).set_ble_token(id(ble_token).state.c_str());'
+          - lambda: 'id(cuktech_ble_bridge).set_ble_key(id(ble_key).state.c_str());'
+
+text:
+  - platform: template
+    name: "BLE Mac"
+    mode: text
+    id: ble_mac
+    device_id: cuktech_ble_device
+    icon: "mdi:bluetooth"
+    entity_category: config
+    optimistic: true
+    restore_value: true
+    set_action:
+      - lambda: 'id(cuktech_ble_bridge).set_ble_mac(x);'
+  - platform: template
+    name: "BLE Token"
+    mode: text
+    id: ble_token
+    device_id: cuktech_ble_device
+    optimistic: true
+    icon: "mdi:code-array"
+    entity_category: config
+    restore_value: true
+    set_action:
+      - lambda: 'id(cuktech_ble_bridge).set_ble_token(x);'
+  - platform: template
+    name: "BLE Key"
+    mode: text
+    id: ble_key
+    device_id: cuktech_ble_device
+    icon: "mdi:key-variant"
+    entity_category: config
+    optimistic: true
+    restore_value: true
+    set_action:
+      - lambda: 'id(cuktech_ble_bridge).set_ble_key(x);'
+
+text_sensor:
+  - platform: version
+    name: "ESPHome Version"
+  - platform: wifi_info
+    ip_address:
+      name: "IP Address"
+
+  - platform: cuktech_ble
+    chipset:
+      name: "Chip Name"
+      device_id: cuktech_ble_device
+    protocol:
+      name: "Protocol Version"
+      device_id: cuktech_ble_device
+    version:
+      name: "Firmware Version"
+      device_id: cuktech_ble_device
+    ble_status:
+      name: "BLE Status"
+      device_id: cuktech_ble_device
+
+time:
+  - platform: homeassistant
+    id: homeassistant_time

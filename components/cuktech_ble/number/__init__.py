@@ -3,10 +3,13 @@ from esphome.components import number
 import esphome.config_validation as cv
 from esphome.const import (
     CONF_ID,
+    CONF_BRIGHTNESS,
     CONF_MAX_VALUE,
     CONF_MIN_VALUE,
     ENTITY_CATEGORY_CONFIG,
-    UNIT_MINUTE
+    ICON_PERCENT,
+    UNIT_MINUTE,
+    UNIT_PERCENT
 )
 from esphome.types import ConfigType
 
@@ -16,6 +19,7 @@ C1CountdownNumber = cuktech_ble_ns.class_("C1CountdownNumber", number.Number)
 C2CountdownNumber = cuktech_ble_ns.class_("C2CountdownNumber", number.Number)
 C3CountdownNumber = cuktech_ble_ns.class_("C3CountdownNumber", number.Number)
 ACountdownNumber = cuktech_ble_ns.class_("ACountdownNumber", number.Number)
+ScreenBrightnessNumber = cuktech_ble_ns.class_("ScreenBrightnessNumber", number.Number)
 
 CONF_C1_COUNTDOWN = "c1_countdown"
 CONF_C2_COUNTDOWN = "c2_countdown"
@@ -53,6 +57,12 @@ CONFIG_SCHEMA = {
         entity_category=ENTITY_CATEGORY_CONFIG,
         icon=ICON_TIMER,
         unit_of_measurement=UNIT_MINUTE
+    ),
+    cv.Optional(CONF_BRIGHTNESS): number.number_schema(
+        ScreenBrightnessNumber,
+        entity_category=ENTITY_CATEGORY_CONFIG,
+        icon=ICON_PERCENT,
+        unit_of_measurement=UNIT_PERCENT
     ),
 }
 
@@ -96,4 +106,14 @@ async def to_code(config: ConfigType) -> None:
         )
         await cg.register_parented(s, config[CONF_CUKTECH_BLE_ID])
         cg.add(CuktechBle.set_a_countdown_number(s))
+
+    if screen_brightness_config := config.get(CONF_BRIGHTNESS):
+        s = await number.new_number(
+            screen_brightness_config,
+            max_value=100,
+            min_value=MIN_VALUE,
+            step=1
+        )
+        await cg.register_parented(s, config[CONF_CUKTECH_BLE_ID])
+        cg.add(CuktechBle.set_brightness_number(s))
 

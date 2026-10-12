@@ -8,7 +8,7 @@ from esphome.components.esp32 import (
     const,
     get_esp32_variant
 )
-from esphome.const import CONF_ID
+from esphome.const import CONF_ID, CONF_MODEL
 from esphome.const import __version__ as ESPHOME_VERSION
 
 if cv.Version.parse(ESPHOME_VERSION) >= cv.Version.parse("2026.9.0"):
@@ -32,6 +32,7 @@ CONFIG_SCHEMA = cv.Schema(
     {
         cv.GenerateID(): cv.declare_id(CuktechBle),
         cv.Optional(CONF_DEVICE_NAME, default="HA Cuktech BLE Bridge"): cv.string,
+        cv.Optional(CONF_MODEL, default="ad1204"): cv.string,
         cv.Optional(CONF_USE_PSRAM): cv.All(
             cv.only_on_esp32, cv.requires_component("psram"), cv.boolean
         ),
@@ -46,6 +47,15 @@ async def to_code(config):
     if cv.Version.parse(ESPHOME_VERSION) >= cv.Version.parse("2026.9.0"):
         if CORE.is_esp32:
             request_bluetooth()
+
+    if config.get(CONF_MODEL):
+        cg.add(var.set_model(config[CONF_MODEL].lower()))
+        if "njcuk.fitting.ad1204" in config[CONF_MODEL].lower():
+            cg.add(var.set_model("ad1204"))
+        if "njcuk.fitting.c2c615" in config[CONF_MODEL].lower():
+            cg.add(var.set_model("c2c615"))
+    else:
+        cg.add(var.set_model("ad1204"))
 
     if config.get(CONF_USE_PSRAM, False):
         cg.add_define("USE_ESP32_BLE_PSRAM")

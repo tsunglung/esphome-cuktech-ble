@@ -22,6 +22,15 @@ typedef struct {
     uint32_t poll_seq;
 } BleCommand;
 
+enum CmdResp {
+    CMD_SET_RESP = 0x01,
+    CMD_GET_RESP = 0x03,
+    PROP_CHANGED = 0x04,
+    CMD_ACTION_RESP = 0x06,
+    CMD_EVENT = 0x07,
+    CMD_STATUS = 0xF0
+};
+
 enum ResultType {
     RES_NOP = 0,
     RES_GET,

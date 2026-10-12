@@ -31,6 +31,11 @@
 #define KEEPALIVE_INTERVAL_MS    30000
 
 typedef enum {
+    CUKTECH_AD1204,
+    CUKTECH_C2C615
+} CuktechModel;
+
+typedef enum {
     BLE_IDLE, BLE_SCANNING, BLE_CONNECTING, BLE_AUTHENTICATING,
     BLE_READY, BLE_RECONNECT
 } BLEState;
@@ -50,7 +55,7 @@ typedef struct {
 #define NOTIF_QUEUE_LEN_AUTH  2  // auth queues only used briefly during startup
 
 typedef struct { uint8_t data[NOTIF_ITEM_SIZE]; size_t len; uint16_t conn_handle, attr_handle; } NotifItem;
-typedef struct { float voltage, current, power; uint8_t protocol, status; bool active; } PortData;
+typedef struct { float voltage, current, power; uint8_t protocol, status; bool active; uint8_t percent; uint16_t vid; uint16_t pid; } PortData;
 
 typedef struct {
     char manufacturer[16];
@@ -77,6 +82,8 @@ class CuktechBle : public Component {
   void on_shutdown() override;
 
   void set_device_name(const std::string &name) { this->device_name_ = name; }
+  void set_model(const std::string &model) { this->model_ = model; }
+  std::string get_model(void) { return this->model_; }
   void set_ble_mac(const std::string &data) { this->ble_mac_ = data; }
   void set_ble_token(const std::string &data) { this->ble_token_ = data; }
   void set_ble_key(const std::string &data) { this->ble_key_ = data; }
@@ -102,18 +109,22 @@ class CuktechBle : public Component {
   void set_a_scp(bool enable);
   void set_a_ufcs(bool enable);
   void set_a_always_on(bool enable);
+  void set_screen_onoff(bool enable);
 
   void set_scene_mode(const char *state);
   void set_language(const char *state);
   void set_screen_saver_timeout(const char *state);
+  void set_screen_rotation_interval(const char *state);
   void set_c1_countdown(float value);
   void set_c2_countdown(float value);
   void set_c3_countdown(float value);
   void set_a_countdown(float value);
+  void set_brightness(float value);
   bool controlling_enabled();
 
  protected:
   std::string device_name_{"ESPHome Cuktech BLE Bridge"};
+  std::string model_{"ad1204"};
   std::string ble_mac_{""};
   std::string ble_token_{""};
   std::string ble_key_{""};
@@ -149,12 +160,14 @@ class CuktechBle : public Component {
   SUB_NUMBER(c2_countdown)
   SUB_NUMBER(c3_countdown)
   SUB_NUMBER(a_countdown)
+  SUB_NUMBER(brightness)
 #endif
 
 #ifdef USE_SELECT
   SUB_SELECT(scene_mode)
   SUB_SELECT(language)
   SUB_SELECT(screen_saver_timeout)
+  SUB_SELECT(screen_rotation_interval)
 #endif
 
 #ifdef USE_SENSOR
@@ -192,6 +205,7 @@ class CuktechBle : public Component {
   SUB_SWITCH(a_scp)
   SUB_SWITCH(a_ufcs)
   SUB_SWITCH(a_always_on)
+  SUB_SWITCH(screen_onoff)
 #endif
 
 #ifdef USE_TEXT_SENSOR
