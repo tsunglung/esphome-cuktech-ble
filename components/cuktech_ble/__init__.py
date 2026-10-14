@@ -13,6 +13,8 @@ from esphome.const import __version__ as ESPHOME_VERSION
 
 if cv.Version.parse(ESPHOME_VERSION) >= cv.Version.parse("2026.9.0"):
   from esphome.components.esp32 import request_bluetooth
+if cv.Version.parse(ESPHOME_VERSION) >= cv.Version.parse("2026.10.0"):
+  from esphome.components.esp32 import require_mbedtls_tls, require_mbedtls_tls_extras
 
 
 CODEOWNERS = ["@zonglong"]
@@ -47,6 +49,9 @@ async def to_code(config):
     if cv.Version.parse(ESPHOME_VERSION) >= cv.Version.parse("2026.9.0"):
         if CORE.is_esp32:
             request_bluetooth()
+    if cv.Version.parse(ESPHOME_VERSION) >= cv.Version.parse("2026.10.0"):
+        require_mbedtls_tls()
+        require_mbedtls_tls_extras()
 
     if config.get(CONF_MODEL):
         cg.add(var.set_model(config[CONF_MODEL].lower()))
