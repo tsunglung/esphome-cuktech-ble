@@ -19,9 +19,12 @@ CONF_C2_PROTOCOL = "c2_protocol"
 CONF_C3_PROTOCOL = "c3_protocol"
 CONF_A_PROTOCOL = "a_protocol"
 CONF_BLE_STATUS = "ble_status"
+CONF_C1_CHARGED_DEVICE = "c1_charged_device"
+CONF_C2_CHARGED_DEVICE = "c2_charged_device"
 
 ICON_USB_C_PORT = "mdi:usb-c-port"
 ICON_USB_PORT = "mdi:usb-port"
+ICON_BATTERY_CHARGING = "mdi:battery-charging"
 
 CONFIG_SCHEMA = cv.Schema(
     {
@@ -58,6 +61,14 @@ CONFIG_SCHEMA = cv.Schema(
             entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
             icon=ICON_BLUETOOTH
         ),
+        cv.Optional(CONF_C1_CHARGED_DEVICE): text_sensor.text_sensor_schema(
+            entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
+            icon=ICON_BATTERY_CHARGING
+        ),
+        cv.Optional(CONF_C2_CHARGED_DEVICE): text_sensor.text_sensor_schema(
+            entity_category=ENTITY_CATEGORY_DIAGNOSTIC,
+            icon=ICON_BATTERY_CHARGING
+        ),
     }
 )
 
@@ -69,7 +80,9 @@ _SENSORS = {
     CONF_C2_PROTOCOL: "set_c2_protocol_text_sensor",
     CONF_C3_PROTOCOL: "set_c3_protocol_text_sensor",
     CONF_A_PROTOCOL: "set_a_protocol_text_sensor",
-    CONF_BLE_STATUS: "set_ble_status_text_sensor"
+    CONF_BLE_STATUS: "set_ble_status_text_sensor",
+    CONF_C1_CHARGED_DEVICE: "set_c1_charged_device_text_sensor",
+    CONF_C2_CHARGED_DEVICE: "set_c2_charged_device_text_sensor"
 }
 
 async def to_code(config):

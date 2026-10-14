@@ -8,8 +8,10 @@ from esphome.const import (
     DEVICE_CLASS_POWER,
     DEVICE_CLASS_VOLTAGE,
     ICON_FLASH,
+    ICON_PERCENT,
     STATE_CLASS_MEASUREMENT,
     UNIT_AMPERE,
+    UNIT_PERCENT,
     UNIT_VOLT,
     UNIT_WATT,
 )
@@ -29,10 +31,8 @@ CONF_C1_VOLTAGE = "c1_voltage"
 CONF_C2_VOLTAGE = "c2_voltage"
 CONF_C3_VOLTAGE = "c3_voltage"
 CONF_A_VOLTAGE = "a_voltage"
-CONF_C1_PROTOCOL = "c1_protocol"
-CONF_C2_PROTOCOL = "c2_protocol"
-CONF_C3_PROTOCOL = "c3_protocol"
-CONF_A_PROTOCOL = "a_protocol"
+CONF_C1_PERCENT = "c1_percent"
+CONF_C2_PERCENT = "c2_percent"
 
 ICON_USB_C_PORT = "mdi:usb-c-port"
 ICON_USB_PORT = "mdi:usb-port"
@@ -132,17 +132,17 @@ CONFIG_SCHEMA = cv.Schema(
             state_class=STATE_CLASS_MEASUREMENT,
             icon=ICON_VOLTAGE
         ),
-        cv.Optional(CONF_C1_PROTOCOL): sensor.sensor_schema(
-            icon=ICON_USB_C_PORT
+        cv.Optional(CONF_C1_PERCENT): sensor.sensor_schema(
+            unit_of_measurement=UNIT_PERCENT,
+            accuracy_decimals=0,
+            state_class=STATE_CLASS_MEASUREMENT,
+            icon=ICON_PERCENT,
         ),
-        cv.Optional(CONF_C2_PROTOCOL): sensor.sensor_schema(
-            icon=ICON_USB_C_PORT
-        ),
-        cv.Optional(CONF_C3_PROTOCOL): sensor.sensor_schema(
-            icon=ICON_USB_C_PORT
-        ),
-        cv.Optional(CONF_A_PROTOCOL): sensor.sensor_schema(
-            icon=ICON_USB_PORT
+        cv.Optional(CONF_C2_PERCENT): sensor.sensor_schema(
+            unit_of_measurement=UNIT_PERCENT,
+            accuracy_decimals=0,
+            state_class=STATE_CLASS_MEASUREMENT,
+            icon=ICON_PERCENT,
         ),
     }
 )
@@ -161,10 +161,8 @@ _SENSORS = {
     CONF_C2_VOLTAGE: "set_c2_voltage_sensor",
     CONF_C3_VOLTAGE: "set_c3_voltage_sensor",
     CONF_A_VOLTAGE: "set_a_voltage_sensor",
-    CONF_C1_PROTOCOL: "set_c1_protocol_sensor",
-    CONF_C2_PROTOCOL: "set_c2_protocol_sensor",
-    CONF_C3_PROTOCOL: "set_c3_protocol_sensor",
-    CONF_A_PROTOCOL: "set_a_protocol_sensor",
+    CONF_C1_PERCENT: "set_c1_percent_sensor",
+    CONF_C2_PERCENT: "set_c2_percent_sensor",
 }
 
 async def to_code(config):

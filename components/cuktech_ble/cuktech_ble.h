@@ -110,6 +110,8 @@ class CuktechBle : public Component {
   void set_a_ufcs(bool enable);
   void set_a_always_on(bool enable);
   void set_screen_onoff(bool enable);
+  void set_c1_optimize(bool enable);
+  void set_c2_optimize(bool enable);
 
   void set_scene_mode(const char *state);
   void set_language(const char *state);
@@ -184,6 +186,8 @@ class CuktechBle : public Component {
   SUB_SENSOR(c2_voltage)
   SUB_SENSOR(c3_voltage)
   SUB_SENSOR(a_voltage)
+  SUB_SENSOR(c1_percent)
+  SUB_SENSOR(c2_percent)
 #endif
 
 #ifdef USE_SWITCH
@@ -206,6 +210,8 @@ class CuktechBle : public Component {
   SUB_SWITCH(a_ufcs)
   SUB_SWITCH(a_always_on)
   SUB_SWITCH(screen_onoff)
+  SUB_SWITCH(c1_optimize)
+  SUB_SWITCH(c2_optimize)
 #endif
 
 #ifdef USE_TEXT_SENSOR
@@ -217,6 +223,8 @@ class CuktechBle : public Component {
   SUB_TEXT_SENSOR(c3_protocol)
   SUB_TEXT_SENSOR(a_protocol)
   SUB_TEXT_SENSOR(ble_status)
+  SUB_TEXT_SENSOR(c1_charged_device)
+  SUB_TEXT_SENSOR(c2_charged_device)
 #endif
 
   void publish_portdata_(bool force);

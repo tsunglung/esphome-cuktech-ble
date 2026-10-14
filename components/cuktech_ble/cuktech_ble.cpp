@@ -24,6 +24,7 @@ extern "C" {
 #include "host/util/util.h"
 #include "services/gap/ble_svc_gap.h"
 #include "services/gatt/ble_svc_gatt.h"
+#include "usbids.h"
 
 // NVS-backed bond store (provided by NimBLE's ble_store_config helper)
 void ble_store_config_init(void);
@@ -482,9 +483,15 @@ static void do_parse_prop_change(uint8_t piid, const uint8_t *pt, size_t pt_len)
     case 5:
         if (pt_len >= 33) {
           memcpy(hex, &pt[11], 22);
+          g_ports[0].percent = 0;
+          g_ports[1].percent = 0;
           if(convert_str(hex, value, 22)) {
-            g_ports[0].percent = value[3];
-            g_ports[1].percent = value[4];
+            g_ports[0].active = value[1] & 0x01;
+            g_ports[1].active = value[1] & 0x02;
+            if (value[3] != 0xFF)
+              g_ports[0].percent = value[3];
+            if (value[4] != 0xFF)
+              g_ports[1].percent = value[4];
           }
         }
         break;
@@ -492,8 +499,19 @@ static void do_parse_prop_change(uint8_t piid, const uint8_t *pt, size_t pt_len)
         if (pt_len >= 39) {
           memcpy(hex, &pt[11], 28);
           if (convert_str(hex, value, 28)) {
-            g_ports[0].vid = (value[1] & 0xFF) << 8 | (value[2] & 0xFF);
-            g_ports[1].vid = (value[7] & 0xFF) << 8 | (value[8] & 0xFF);
+            UsbDevStruct* tmpDev;
+            g_ports[0].vid = 0x0;
+            g_ports[0].pid = 0x0;
+            g_ports[1].vid = 0x0;
+            g_ports[1].pid = 0x0;
+            if ((value[1] & 0xFF) != 0x00 && (value[2] & 0xFF) != 0x00) {
+              g_ports[0].vid = (value[1] & 0xFF) << 8 | (value[2] & 0xFF);
+              g_ports[0].pid = (value[3] & 0xFF) << 8 | (value[4] & 0xFF);
+            }
+            if ((value[7] & 0xFF) != 0x00 && (value[8] & 0xFF) != 0x00) {
+              g_ports[1].vid = (value[7] & 0xFF) << 8 | (value[8] & 0xFF);
+              g_ports[1].pid = (value[9] & 0xFF) << 8 | (value[10] & 0xFF);
+            }
           }
         }
         break;
@@ -512,6 +530,12 @@ static void do_parse_prop_change(uint8_t piid, const uint8_t *pt, size_t pt_len)
             new_pt[11] = (new_pt[14] > 1) ? 0x1 : 0x0;
             do_parse_port(2, new_pt, 15);
           }
+        }
+        break;
+    case 15:
+        g_settings[pt[7]] = 0x0;
+        if (pt_len == 12) {
+          g_settings[pt[7]] = pt[11];
         }
         break;
     default:
@@ -874,6 +898,7 @@ bool do_miot_get(uint8_t siid, uint8_t piid, uint32_t* value) {
     while (retry--) {
         if (!do_recv_cmd(resp, &rl, 8000)) return false;
         if (resp[4] == PROP_CHANGED) {
+          do_parse_prop_change(resp[7], resp, rl);
           continue;
         }
         if (resp[4] == CMD_GET_RESP && resp[6] == siid && resp[7] == piid) {
@@ -908,11 +933,15 @@ bool do_miot_set(uint8_t siid, uint8_t piid, uint32_t value) {
     bool ok = false;
     if (rl >= 6 && resp[4] == CMD_SET_RESP) {
         ok = true;
-        if (do_recv_cmd(resp, &rl, 2000)) { if (rl >= 8 && resp[4] == 0x04) ok = (resp[7] == piid); }
+        if (do_recv_cmd(resp, &rl, 2000)) {
+          if (rl >= 8 && resp[4] == PROP_CHANGED) ok = (resp[7] == piid); }
     } else if (rl < 12 && rl >= 8 && resp[4] == PROP_CHANGED) { ok = (resp[7] == piid); }
     else if (rl >= 12 && resp[4] == PROP_CHANGED) {
         ok = true;
-        if (do_recv_cmd(resp, &rl, 2000)) { if (rl >= 8 && resp[4] == 0x04) ok = (resp[7] == piid); }
+        if (do_recv_cmd(resp, &rl, 2000)) {
+          if (rl >= 8 && resp[4] == PROP_CHANGED) ok = (resp[7] == piid);
+          if (rl >= 8 && resp[4] == CMD_SET_RESP) ok = (resp[7] == piid);
+      }
     } // protocol 2.3
     NotifItem item;
     QueueHandle_t qs[] = {g_q_auth_ctrl, g_q_auth_data, g_q_cmd_send};
@@ -1408,7 +1437,7 @@ void CuktechBle::loop() {
       }
   }
   // Fast poll (20s): port control (16) and protocol extends (21) change via SET
-  if ((g_state == BLE_READY) && (now - this->last_cd_fetch_fast_ >= 20000)) {
+  if ((g_state == BLE_READY) && (now - this->last_cd_fetch_fast_ >= 10000)) {
       this->last_cd_fetch_fast_ = now;
       if (g_model == CUKTECH_C2C615) {
         static const uint8_t SLOW_PIIDS[] = {1, 2, 3};
@@ -1456,6 +1485,12 @@ void CuktechBle::publish_settings_(bool force) {
       }
       if (this->brightness_number_) {
         this->brightness_number_->publish_state(g_settings[2]);
+      }
+      if (this->c1_optimize_switch_) {
+        this->c1_optimize_switch_->publish_state(g_settings[15] & 0x01);
+      }
+      if (this->c2_optimize_switch_) {
+        this->c2_optimize_switch_->publish_state(g_settings[15] & 0x02);
       }
     } else {
       if (this->scene_mode_select_) {
@@ -1575,9 +1610,61 @@ void CuktechBle::publish_portdata_(bool force) {
       this->c2_voltage_sensor_->publish_state(g_ports[1].voltage);
     }
     if (g_model == CUKTECH_C2C615) {
+      if (this->c1_percent_sensor_) {
+        this->c1_percent_sensor_->publish_state(g_ports[0].percent);
+      }
+      if (this->c2_percent_sensor_) {
+        this->c2_percent_sensor_->publish_state(g_ports[1].percent);
+      }
       if (this->total_power_sensor_) {
         this->total_power_sensor_->publish_state(
           g_ports[0].power + g_ports[1].power);
+      }
+      if (this->c1_charged_device_text_sensor_) {
+        if (g_ports[0].vid != 0x0) {
+          UsbDevStruct* tmpDev;
+          bool found = false;
+          tmpDev = UsbListFind(g_ports[0].vid, g_ports[0].pid);
+          if (tmpDev != NULL) {
+            found = true;
+          } else {
+            tmpDev = UsbListFindVid(g_ports[0].vid, g_ports[0].pid);
+            if (tmpDev != NULL) {
+                found = true;
+            }
+          }
+          if (found) {
+              char name[32];
+              ESP_LOGV(TAG, "c1 (%x, %x) found %s %s", tmpDev->VendorID, tmpDev->DeviceID, tmpDev->Vendor, tmpDev->Device);
+              sprintf(name, "%s %s", tmpDev->Vendor, tmpDev->Device);
+              this->c1_charged_device_text_sensor_->publish_state(name);
+          }
+        } else {
+          this->c1_charged_device_text_sensor_->publish_state("Unknown");
+        }
+      }
+      if (this->c2_charged_device_text_sensor_) {
+        if (g_ports[1].vid != 0x0) {
+          UsbDevStruct* tmpDev;
+          bool found = false;
+          tmpDev = UsbListFind(g_ports[1].vid, g_ports[1].pid);
+          if (tmpDev != NULL) {
+            found = true;
+          } else {
+            tmpDev = UsbListFindVid(g_ports[1].vid, g_ports[1].pid);
+            if (tmpDev != NULL) {
+                found = true;
+            }
+          }
+          if (found) {
+              char name[32];
+              ESP_LOGV(TAG, "c2 (%x, %x) found %s %s", tmpDev->VendorID, tmpDev->DeviceID, tmpDev->Vendor, tmpDev->Device);
+              sprintf(name, "%s %s", tmpDev->Vendor, tmpDev->Device);
+              this->c2_charged_device_text_sensor_->publish_state(name);
+          }
+        } else {
+          this->c2_charged_device_text_sensor_->publish_state("Unknown");
+        }
       }
     } else {
       if (this->c3_active_binary_sensor_) {
@@ -1813,6 +1900,16 @@ void CuktechBle::set_a_ufcs(bool enable) {
 
 void CuktechBle::set_a_always_on(bool enable) {
   handle_setting_set(15, enable? 1: 0);
+}
+
+// c2c615
+void CuktechBle::set_c1_optimize(bool enable) {
+  handle_setting_set(15, enable? g_settings[15] | 0x01: g_settings[15] & ~0x01);
+}
+
+// c2c615
+void CuktechBle::set_c2_optimize(bool enable) {
+  handle_setting_set(15, enable? g_settings[15] | 0x02: g_settings[15] & ~0x02);
 }
 
 // c2c615
