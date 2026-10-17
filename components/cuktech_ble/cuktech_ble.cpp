@@ -454,14 +454,13 @@ static uint8_t do_estimate_proto(uint8_t piid, float voltage, uint8_t code, uint
 }
 
 static void do_parse_port(uint8_t piid, const uint8_t *pt, size_t pt_len) {
-  if (piid < 1 || piid > 4 || pt_len < 12) return;
-  uint32_t val = pt[pt_len-4] | (pt[pt_len-3] << 8) |
-                  (pt[pt_len-2] << 16) | (pt[pt_len-1] << 24);
   uint8_t idx = piid - 1;
-  g_ports[idx].voltage = ((val >> 24) & 0xFF) / 10.0f;
-  g_ports[idx].current = ((val >> 16) & 0xFF) / 10.0f;
-  g_ports[idx].protocol = do_estimate_proto(piid, g_ports[idx].voltage, (val >> 8) & 0xFF, do_get_hw_proto(piid));
-  g_ports[idx].status = val & 0xFF;
+
+  if (piid < 1 || piid > 4 || pt_len < 12) return;
+  g_ports[idx].voltage = (pt[pt_len-1] & 0xFF) / 10.0f;
+  g_ports[idx].current = (pt[pt_len-2] & 0xFF) / 10.0f;
+  g_ports[idx].protocol = do_estimate_proto(piid, g_ports[idx].voltage, pt[pt_len-3] & 0xFF, do_get_hw_proto(piid));
+  g_ports[idx].status = pt[pt_len-4] & 0xFF;
   g_ports[idx].power = g_ports[idx].voltage * g_ports[idx].current;
   g_ports[idx].active = (g_ports[idx].status != 0) || (g_ports[idx].voltage > 0.5f);
   ESP_LOGV(TAG, "Port%d: V=%.1f I=%.1f P=%.1f proto=%d st=0x%02X",
@@ -1483,22 +1482,32 @@ void CuktechBle::publish_settings_(bool force) {
            value = 4;
         this->screen_rotation_interval_select_->publish_state(value);
       }
+#ifdef USE_NUMBER
       if (this->brightness_number_) {
         this->brightness_number_->publish_state(g_settings[2]);
       }
+#endif
+#ifdef USE_SWITCH
       if (this->c1_optimize_switch_) {
         this->c1_optimize_switch_->publish_state(g_settings[15] & 0x01);
       }
       if (this->c2_optimize_switch_) {
         this->c2_optimize_switch_->publish_state(g_settings[15] & 0x02);
       }
+#endif
     } else {
+#ifdef USE_SELECT
       if (this->scene_mode_select_) {
         this->scene_mode_select_->publish_state(g_settings[5] - 1);
       }
       if (this->screen_saver_timeout_select_) {
         this->screen_saver_timeout_select_->publish_state(g_settings[6] - 1);
       }
+      if (this->language_select_) {
+        this->language_select_->publish_state(g_settings[13]);
+      }
+#endif
+#ifdef USE_NUMBER
       if (this->c1_countdown_number_) {
         this->c1_countdown_number_->publish_state(g_settings[9]);
       }
@@ -1511,61 +1520,74 @@ void CuktechBle::publish_settings_(bool force) {
       if (this->a_countdown_number_) {
         this->a_countdown_number_->publish_state(g_settings[12]);
       }
-      if (this->language_select_) {
-        this->language_select_->publish_state(g_settings[13]);
+#endif
+#ifdef USE_SWITCH
+      if (g_model == CUKTECH_C2C615) {
+        if (this->c1_ufcs_switch_) {
+          this->c1_ufcs_switch_->publish_state(g_settings[21] & (0x1 << 2));
+        }
+        if (this->c2_ufcs_switch_) {
+          this->c2_ufcs_switch_->publish_state(g_settings[21] & (0x1 << 10));
+        }
+        if (this->c2_scp_switch_) {
+          this->c2_scp_switch_->publish_state(g_settings[21] & (0x1 << 17));
+        }
+      } else {
+        if (this->a_always_on_switch_) {
+          this->a_always_on_switch_->publish_state(g_settings[15]);
+        }
+        if (this->screen_saver_switch_) {
+          this->screen_saver_switch_->publish_state(g_settings[19]);
+        }
+        if (this->screen_dir_lock_switch_) {
+          this->screen_dir_lock_switch_->publish_state(g_settings[20]);
+        }
+        if (this->c1_port_switch_) {
+          this->c1_port_switch_->publish_state(g_settings[16] & (0x1 << 0));
+        }
+        if (this->c2_port_switch_) {
+          this->c2_port_switch_->publish_state(g_settings[16] & (0x1 << 1));
+        }
+        if (this->c3_port_switch_) {
+          this->c3_port_switch_->publish_state(g_settings[16] & (0x1 << 2));
+        }
+        if (this->a_port_switch_) {
+          this->a_port_switch_->publish_state(g_settings[16] & (0x1 << 3));
+        }
+        if (this->c1_pd_switch_) {
+          this->c1_pd_switch_->publish_state(g_settings[21] & (0x1 << 0));
+        }
+        if (this->c1_pps_switch_) {
+          this->c1_pps_switch_->publish_state(g_settings[21] & (0x1 << 1));
+        }
+        if (this->c1_ufcs_switch_) {
+          this->c1_ufcs_switch_->publish_state(g_settings[21] & (0x1 << 2));
+        }
+        if (this->c2_pd_switch_) {
+          this->c2_pd_switch_->publish_state(g_settings[21] & (0x1 << 8));
+        }
+        if (this->c2_pps_switch_) {
+          this->c2_pps_switch_->publish_state(g_settings[21] & (0x1 << 9));
+        }
+        if (this->c2_ufcs_switch_) {
+          this->c2_ufcs_switch_->publish_state(g_settings[21] & (0x1 << 10));
+        }
+        if (this->c3_ufcs_switch_) {
+          this->c3_ufcs_switch_->publish_state(g_settings[21] & (0x1 << 16));
+        }
+        if (this->c3_scp_switch_) {
+          this->c3_scp_switch_->publish_state(g_settings[21] & (0x1 << 17));
+        }
+        if (this->a_ufcs_switch_) {
+          this->a_ufcs_switch_->publish_state(g_settings[21] & (0x1 << 24));
+        }
+        if (this->a_scp_switch_) {
+          this->a_scp_switch_->publish_state(g_settings[21] & (0x1 << 25));
+        }
       }
-      if (this->a_always_on_switch_) {
-        this->a_always_on_switch_->publish_state(g_settings[15]);
-      }
-      if (this->screen_saver_switch_) {
-        this->screen_saver_switch_->publish_state(g_settings[19]);
-      }
-      if (this->screen_dir_lock_switch_) {
-        this->screen_dir_lock_switch_->publish_state(g_settings[20]);
-      }
-      if (this->c1_port_switch_) {
-        this->c1_port_switch_->publish_state(g_settings[16] & (0x1 << 0));
-      }
-      if (this->c2_port_switch_) {
-        this->c2_port_switch_->publish_state(g_settings[16] & (0x1 << 1));
-      }
-      if (this->c3_port_switch_) {
-        this->c3_port_switch_->publish_state(g_settings[16] & (0x1 << 2));
-      }
-      if (this->a_port_switch_) {
-        this->a_port_switch_->publish_state(g_settings[16] & (0x1 << 3));
-      }
-      if (this->c1_pd_switch_) {
-        this->c1_pd_switch_->publish_state(g_settings[21] & (0x1 << 0));
-      }
-      if (this->c1_pps_switch_) {
-        this->c1_pps_switch_->publish_state(g_settings[21] & (0x1 << 1));
-      }
-      if (this->c1_ufcs_switch_) {
-        this->c1_ufcs_switch_->publish_state(g_settings[21] & (0x1 << 2));
-      }
-      if (this->c2_pd_switch_) {
-        this->c2_pd_switch_->publish_state(g_settings[21] & (0x1 << 8));
-      }
-      if (this->c2_pps_switch_) {
-        this->c2_pps_switch_->publish_state(g_settings[21] & (0x1 << 9));
-      }
-      if (this->c2_ufcs_switch_) {
-        this->c2_ufcs_switch_->publish_state(g_settings[21] & (0x1 << 10));
-      }
-      if (this->c3_ufcs_switch_) {
-        this->c3_ufcs_switch_->publish_state(g_settings[21] & (0x1 << 16));
-      }
-      if (this->c3_scp_switch_) {
-        this->c3_scp_switch_->publish_state(g_settings[21] & (0x1 << 17));
-      }
-      if (this->a_ufcs_switch_) {
-        this->a_ufcs_switch_->publish_state(g_settings[21] & (0x1 << 24));
-      }
-      if (this->a_scp_switch_) {
-        this->a_scp_switch_->publish_state(g_settings[21] & (0x1 << 25));
-      }
+#endif
     }
+#ifdef USE_TEXT_SENSOR
     if (this->chipset_text_sensor_) {
       this->chipset_text_sensor_->publish_state(g_device_info.chip_name);
     }
@@ -1577,20 +1599,26 @@ void CuktechBle::publish_settings_(bool force) {
     if (this->version_text_sensor_) {
       this->version_text_sensor_->publish_state(g_device_info.firmware_version);
     }
+#endif
   }
 }
 
 void CuktechBle::publish_portdata_(bool force) {
+#ifdef USE_BINARY_SENSOR
   if (this->connected_binary_sensor_) {
     this->connected_binary_sensor_->publish_state(g_connected);
   }
+#endif
   if (g_connected || force) {
+#ifdef USE_BINARY_SENSOR
     if (this->c1_active_binary_sensor_) {
       this->c1_active_binary_sensor_->publish_state(g_ports[0].active);
     }
     if (this->c2_active_binary_sensor_) {
       this->c2_active_binary_sensor_->publish_state(g_ports[1].active);
     }
+#endif
+#ifdef USE_SENSOR
     if (this->c1_power_sensor_) {
       this->c1_power_sensor_->publish_state(g_ports[0].power);
     }
@@ -1609,7 +1637,9 @@ void CuktechBle::publish_portdata_(bool force) {
     if (this->c2_voltage_sensor_) {
       this->c2_voltage_sensor_->publish_state(g_ports[1].voltage);
     }
+#endif
     if (g_model == CUKTECH_C2C615) {
+#ifdef USE_SENSOR
       if (this->c1_percent_sensor_) {
         this->c1_percent_sensor_->publish_state(g_ports[0].percent);
       }
@@ -1620,6 +1650,8 @@ void CuktechBle::publish_portdata_(bool force) {
         this->total_power_sensor_->publish_state(
           g_ports[0].power + g_ports[1].power);
       }
+#endif
+#ifdef USE_TEXT_SENSOR
       if (this->c1_charged_device_text_sensor_) {
         if (g_ports[0].vid != 0x0) {
           UsbDevStruct* tmpDev;
@@ -1635,7 +1667,6 @@ void CuktechBle::publish_portdata_(bool force) {
           }
           if (found) {
               char name[32];
-              ESP_LOGV(TAG, "c1 (%x, %x) found %s %s", tmpDev->VendorID, tmpDev->DeviceID, tmpDev->Vendor, tmpDev->Device);
               sprintf(name, "%s %s", tmpDev->Vendor, tmpDev->Device);
               this->c1_charged_device_text_sensor_->publish_state(name);
           }
@@ -1658,7 +1689,6 @@ void CuktechBle::publish_portdata_(bool force) {
           }
           if (found) {
               char name[32];
-              ESP_LOGV(TAG, "c2 (%x, %x) found %s %s", tmpDev->VendorID, tmpDev->DeviceID, tmpDev->Vendor, tmpDev->Device);
               sprintf(name, "%s %s", tmpDev->Vendor, tmpDev->Device);
               this->c2_charged_device_text_sensor_->publish_state(name);
           }
@@ -1666,13 +1696,17 @@ void CuktechBle::publish_portdata_(bool force) {
           this->c2_charged_device_text_sensor_->publish_state("Unknown");
         }
       }
+#endif
     } else {
+#ifdef USE_BINARY_SENSOR
       if (this->c3_active_binary_sensor_) {
         this->c3_active_binary_sensor_->publish_state(g_ports[2].active);
       }
       if (this->a_active_binary_sensor_) {
         this->a_active_binary_sensor_->publish_state(g_ports[3].active);
       }
+#endif
+#ifdef USE_SENSOR
       if (this->total_power_sensor_) {
         this->total_power_sensor_->publish_state(
           g_ports[0].power + g_ports[1].power + g_ports[2].power + g_ports[3].power);
@@ -1695,9 +1729,11 @@ void CuktechBle::publish_portdata_(bool force) {
       if (this->a_voltage_sensor_) {
         this->a_voltage_sensor_->publish_state(g_ports[3].voltage);
       }
+#endif
     }
   }
 
+#ifdef USE_TEXT_SENSOR
   if (this->c1_protocol_text_sensor_) {
     const char *proto = g_ports[0].active ? get_proto_name(g_ports[0].protocol) : "idle";
     this->c1_protocol_text_sensor_->publish_state(proto);
@@ -1720,6 +1756,7 @@ void CuktechBle::publish_portdata_(bool force) {
   if (this->ble_status_text_sensor_) {
     this->ble_status_text_sensor_->publish_state(g_ble_status);
   }
+#endif
 }
 
 void CuktechBle::dump_config() {
@@ -1784,7 +1821,7 @@ void CuktechBle::set_enable_controlling(bool enable) {
   }
   g_enabled = enable;
 
-  ESP_LOGV(TAG, "Controlling switch -> %s", enable ? "ON" : "OFF");
+  ESP_LOGI(TAG, "Controlling switch -> %s", enable ? "ON" : "OFF");
   g_ra = 0;
   if (g_nimble_ready && !this->last_published_connected_) {
     ble_gap_adv_stop();
@@ -1800,6 +1837,18 @@ void CuktechBle::set_enable_controlling(bool enable) {
         this->last_published_connected_ = false;
     }
   }
+
+#ifdef USE_TEXT_SENSOR
+  if (this->ble_status_text_sensor_) {
+    this->ble_status_text_sensor_->publish_state(g_ble_status);
+  }
+#endif
+
+#ifdef USE_BINARY_SENSOR
+  if (this->connected_binary_sensor_) {
+    this->connected_binary_sensor_->publish_state(g_connected);
+  }
+#endif
 }
 
 bool CuktechBle::controlling_enabled() { return g_enabled; }
@@ -1969,6 +2018,34 @@ void CuktechBle::set_screen_rotation_interval(const char *state) {
   handle_setting_set(3, (uint16_t)value);
 }
 
+void CuktechBle::get_info(uint8_t type, uint8_t value, uint8_t *resp) {
+  if (g_state == BLE_READY) {
+      switch (type) {
+        case 0:
+          ESP_LOGE(TAG, "GET info");
+          if (value == 0) {
+            static const uint8_t PIIDS[] = {1, 2, 3};
+            for (int i = 0; i < sizeof(PIIDS); i++) {
+                BleCommand c = {CMD_GET, SIID_CHARGER, PIIDS[i], 0, 0};
+                xQueueSend(cmd_queue, &c, 0);
+            }
+          } else {
+            static const uint8_t PIIDS[] = {value};
+            for (int i = 0; i < sizeof(PIIDS); i++) {
+                BleCommand c = {CMD_GET, SIID_CHARGER, PIIDS[i], 0, 0};
+                xQueueSend(cmd_queue, &c, 0);
+            }
+          }
+          break;
+        case 1:
+          memcpy(resp, g_ports, sizeof(g_ports));
+          break;
+        case 2:
+          memcpy(resp, g_settings, sizeof(g_settings));
+          break;
+      }
+  }
+}
 
 }  // namespace cuktech_ble
 }  // namespace esphome

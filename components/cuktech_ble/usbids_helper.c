@@ -29,9 +29,14 @@ static UsbDevStruct UsbList[] = {
 
 	{ 0x045e, 0xFFFF, "Microsoft", "Notebook" },
 
+	{ 0x057e, 0x2000, "Nintendo", "Switch" },
+	{ 0x057e, 0x2060, "Nintendo", "Switch 2" },
+	{ 0x057e, 0xFFFF, "Nintendo", "Device" },
+
 	{ 0x05ac, 0x1290, "Apple", "iPhone" },
 	{ 0x05ac, 0x12a8, "Apple", "iPhone" },
 	{ 0x05ac, 0x12ab, "Apple", "iPhone" },
+	{ 0x05ac, 0x13a1, "Apple", "AirPods Charging Case" },
 	{ 0x05ac, 0x7102, "Apple", "iPad Pro" },
 	{ 0x05ac, 0x7108, "Apple", "iPad Air" },
 	{ 0x05ac, 0x7109, "Apple", "iPad Pro" },
@@ -48,8 +53,8 @@ static UsbDevStruct UsbList[] = {
 	{ 0x05ac, 0x711d, "Apple", "iPad Air" },
 	{ 0x05ac, 0x711e, "Apple", "iPad Pro" },
 	{ 0x05ac, 0x711b, "Apple", "iPad" },
-	{ 0x05ac, 0x7304, "Apple", "MacBook Pro" },
 	{ 0x05ac, 0x7302, "Apple", "MacBook Air" },
+	{ 0x05ac, 0x7304, "Apple", "MacBook Pro" },
 	{ 0x05ac, 0x7306, "Apple", "MacBook Pro" },
 	{ 0x05ac, 0x7307, "Apple", "MacBook Air" },
 	{ 0x05ac, 0x7308, "Apple", "MacBook Pro" },
@@ -178,6 +183,9 @@ static UsbDevStruct UsbList[] = {
 
 	{ 0x1d68, 0xFFFF, "Linux Foundation", "Notebook" },
 
+	{ 0x2109, 0x0103, "VIA", "USB Hub" },
+	{ 0x2109, 0xFFFF, "VIA", "Notebook" },
+
 	{ 0x22b8, 0x6415, "Motorola", "ROKR Z6 (MTP mode)" },
 	{ 0x22b8, 0x6604, "Motorola", "Washington CDMA Phone" },
 	{ 0x22b8, 0x6631, "Motorola", "CDC Modem" },
@@ -197,6 +205,7 @@ static UsbDevStruct UsbList[] = {
 	{ 0x29cf, 0x6375, "POCO", "X4 GT" },
 	{ 0x29cf, 0xFFFF, "POCO", "Phone" },
 
+	{ 0x2717, 0x209e, "Xiaomi", "Phone (MTP)" },
 	{ 0x2717, 0xFFFF, "Xiaomi", "Phone" },
 
 	{ 0x2a45, 0x0001, "Meizu Corp.", "MX Phone (BICR)" },
@@ -225,7 +234,7 @@ static UsbDevStruct UsbList[] = {
 //05AC731203D4 MacBook Pro M2
 //05AC731902D0 MacBook Pro M4
 
-uint16_t UsbListLength = sizeof UsbList / sizeof UsbList[0];
+uint16_t UsbListLength = sizeof(UsbList) / sizeof(UsbList[0]);
 
 static int cmp(const void *vp, const void *vq)
 {
@@ -265,7 +274,7 @@ UsbDevStruct *UsbListFind(uint16_t vendor, uint16_t device)
 
 	key.VendorID = vendor;
 	key.DeviceID = device;
-	return (UsbDevStruct *)bsearch(&key, UsbList, UsbListLength, sizeof *UsbList, cmp);
+	return (UsbDevStruct *)bsearch(&key, UsbList, UsbListLength, sizeof(*UsbList), cmp);
 }
 
 UsbDevStruct *UsbListFindVid(uint16_t vendor, uint16_t device)
@@ -274,6 +283,6 @@ UsbDevStruct *UsbListFindVid(uint16_t vendor, uint16_t device)
 
 	key.VendorID = vendor;
 	key.DeviceID = device;
-	return (UsbDevStruct *)bsearch(&key, UsbList, UsbListLength, sizeof *UsbList, cmpv);
+	return (UsbDevStruct *)bsearch(&key, UsbList, UsbListLength, sizeof(*UsbList), cmpv);
 }
 

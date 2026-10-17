@@ -7,7 +7,7 @@ substitutions:
 esphome:
   name: ${devicename}
   friendly_name: ${upper_devicename}
-  comment: ${dehumidifier_devicename} via ${upper_devicename}
+  comment: ${cuktech_ble_devicename} via ${upper_devicename}
   project:
     name: "Cuktech.njcuk_fitting_ad1204"
     version: "1.1.0"
@@ -180,6 +180,12 @@ sensor:
     c2_voltage:
       name: "Port C2 Voltage"
       device_id: cuktech_ble_device
+    c1_percent:
+      name: "Port C1 Percent"
+      device_id: cuktech_ble_device
+    c2_percent:
+      name: "Port C2 Percent"
+      device_id: cuktech_ble_device
 
 switch:
   - platform: cuktech_ble
@@ -193,6 +199,9 @@ switch:
           - lambda: 'id(cuktech_ble_bridge).set_ble_mac(id(ble_mac).state.c_str());'
           - lambda: 'id(cuktech_ble_bridge).set_ble_token(id(ble_token).state.c_str());'
           - lambda: 'id(cuktech_ble_bridge).set_ble_key(id(ble_key).state.c_str());'
+    screen_onoff:
+      name: "Screen OnOff"
+      device_id: cuktech_ble_device
 
 text:
   - platform: template
@@ -248,6 +257,12 @@ text_sensor:
       device_id: cuktech_ble_device
     ble_status:
       name: "BLE Status"
+      device_id: cuktech_ble_device
+    c1_charged_device:
+      name: "Port C1 Charged Device"
+      device_id: cuktech_ble_device
+    c2_charged_device:
+      name: "Port C2 Charged Device"
       device_id: cuktech_ble_device
 
 time:

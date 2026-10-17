@@ -35,6 +35,7 @@ AAlwaysOnSwitch = cuktech_ble_ns.class_("AAlwaysOnSwitch", switch.Switch)
 ScreenOnOffSwitch = cuktech_ble_ns.class_("ScreenOnOffSwitch", switch.Switch)
 C1OptimizeSwitch = cuktech_ble_ns.class_("C1OptimizeSwitch", switch.Switch)
 C2OptimizeSwitch = cuktech_ble_ns.class_("C2OptimizeSwitch", switch.Switch)
+C2SCPSwitch = cuktech_ble_ns.class_("C2SCPSwitch", switch.Switch)
 
 CONF_ENABLE_CONTROLLING = "enable_controlling"
 CONF_SCREEN_DIR_LOCK = "screen_dir_lock"
@@ -57,6 +58,7 @@ CONF_A_ALWAYS_ON = "a_always_on"
 CONF_SCREEN_ONOFF = "screen_onoff"
 CONF_C1_OPTIMIZE = "c1_optimize"
 CONF_C2_OPTIMIZE = "c2_optimize"
+CONF_C2_SCP = "c2_scp"
 
 DEFAULT_ICON = "mdi:toggle-switch-variant"
 ICONS = {
@@ -81,6 +83,7 @@ ICONS = {
     CONF_SCREEN_ONOFF: "mdi:cellphone-screenshot",
     CONF_C1_OPTIMIZE: "mdi:battery-charging-100",
     CONF_C2_OPTIMIZE: "mdi:battery-charging-100",
+    CONF_C2_SCP: "mdi:usb",
 }
 
 _SWITCHS = {
@@ -105,6 +108,7 @@ _SWITCHS = {
     CONF_SCREEN_ONOFF: ScreenOnOffSwitch,
     CONF_C1_OPTIMIZE: C1OptimizeSwitch,
     CONF_C2_OPTIMIZE: C2OptimizeSwitch,
+    CONF_C2_SCP: C2SCPSwitch,
 }
 
 COMPONENT_SCHEMA = cv.Schema(

@@ -48,14 +48,15 @@ typedef struct {
     float voltage, current, power;
     uint8_t protocol, status;
     bool active;
-} PortInfo;
+    uint8_t percent;
+    uint16_t vid, pid;
+} PortData;
 
 #define NOTIF_ITEM_SIZE  256
 #define NOTIF_QUEUE_LEN  8
 #define NOTIF_QUEUE_LEN_AUTH  2  // auth queues only used briefly during startup
 
 typedef struct { uint8_t data[NOTIF_ITEM_SIZE]; size_t len; uint16_t conn_handle, attr_handle; } NotifItem;
-typedef struct { float voltage, current, power; uint8_t protocol, status; bool active; uint8_t percent; uint16_t vid; uint16_t pid; } PortData;
 
 typedef struct {
     char manufacturer[16];
@@ -90,6 +91,7 @@ class CuktechBle : public Component {
 
   void check_config();
   void factory_reset();
+  void get_info(uint8_t type, uint8_t value, uint8_t *resp);
 
   void set_enable_controlling(bool enable);
   void set_screen_dir_lock(bool enable);
@@ -212,6 +214,7 @@ class CuktechBle : public Component {
   SUB_SWITCH(screen_onoff)
   SUB_SWITCH(c1_optimize)
   SUB_SWITCH(c2_optimize)
+  SUB_SWITCH(c2_scp)
 #endif
 
 #ifdef USE_TEXT_SENSOR
