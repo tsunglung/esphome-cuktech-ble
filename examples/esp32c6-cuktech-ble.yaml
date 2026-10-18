@@ -14,11 +14,12 @@ esphome:
     version: "1.1.0"
   name_add_mac_suffix: true
   on_boot:
-    - priority: 500
+    - priority: -100
       then:
-        - lambda: 'id(cuktech_ble_bridge).set_ble_mac(id(ble_mac).state.c_str());'
-        - lambda: 'id(cuktech_ble_bridge).set_ble_token(id(ble_token).state.c_str());'
-        - lambda: 'id(cuktech_ble_bridge).set_ble_key(id(ble_key).state.c_str());'
+        - lambda: |-
+           id(cuktech_ble_bridge).set_ble_mac(id(ble_mac).state.c_str());
+           id(cuktech_ble_bridge).set_ble_token(id(ble_token).state.c_str());
+           id(cuktech_ble_bridge).set_ble_key(id(ble_key).state.c_str());
 
 esp32:
   board: esp32-c6-devkitm-1
@@ -201,12 +202,7 @@ switch:
   - platform: cuktech_ble
     enable_controlling:
       name: "Connection Controlling"
-      restore_mode: RESTORE_DEFAULT_ON
-      on_turn_on:
-        then:
-          - lambda: 'id(cuktech_ble_bridge).set_ble_mac(id(ble_mac).state.c_str());'
-          - lambda: 'id(cuktech_ble_bridge).set_ble_token(id(ble_token).state.c_str());'
-          - lambda: 'id(cuktech_ble_bridge).set_ble_key(id(ble_key).state.c_str());'
+      id: cuktech_controlling
     screen_dir_lock:
       name: "Screen Dir Lock"
     screen_saver:

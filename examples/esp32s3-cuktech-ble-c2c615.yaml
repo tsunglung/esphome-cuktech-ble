@@ -16,11 +16,12 @@ esphome:
   - id: cuktech_ble_device
     name: ${cuktech_ble_devicename}
   on_boot:
-    - priority: 500
+    - priority: -100
       then:
-        - lambda: 'id(cuktech_ble_bridge).set_ble_mac(id(ble_mac).state.c_str());'
-        - lambda: 'id(cuktech_ble_bridge).set_ble_token(id(ble_token).state.c_str());'
-        - lambda: 'id(cuktech_ble_bridge).set_ble_key(id(ble_key).state.c_str());'
+        - lambda: |-
+           id(cuktech_ble_bridge).set_ble_mac(id(ble_mac).state.c_str());
+           id(cuktech_ble_bridge).set_ble_token(id(ble_token).state.c_str());
+           id(cuktech_ble_bridge).set_ble_key(id(ble_key).state.c_str());
 
 esp32:
   board: esp32-s3-devkitc-1
@@ -191,14 +192,8 @@ switch:
   - platform: cuktech_ble
     enable_controlling:
       name: "Connection Controlling"
-      restore_mode: RESTORE_DEFAULT_ON
       id: cuktech_controlling
       device_id: cuktech_ble_device
-      on_turn_on:
-        then:
-          - lambda: 'id(cuktech_ble_bridge).set_ble_mac(id(ble_mac).state.c_str());'
-          - lambda: 'id(cuktech_ble_bridge).set_ble_token(id(ble_token).state.c_str());'
-          - lambda: 'id(cuktech_ble_bridge).set_ble_key(id(ble_key).state.c_str());'
     screen_onoff:
       name: "Screen OnOff"
       device_id: cuktech_ble_device

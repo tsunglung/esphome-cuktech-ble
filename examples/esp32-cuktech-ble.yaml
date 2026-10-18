@@ -189,12 +189,7 @@ switch:
   - platform: cuktech_ble
     enable_controlling:
       name: "Connection Controlling"
-      restore_mode: RESTORE_DEFAULT_ON
-      on_turn_on:
-        then:
-          - lambda: 'id(cuktech_ble_bridge).set_ble_mac(id(ble_mac).state.c_str());'
-          - lambda: 'id(cuktech_ble_bridge).set_ble_token(id(ble_token).state.c_str());'
-          - lambda: 'id(cuktech_ble_bridge).set_ble_key(id(ble_key).state.c_str());'
+      id: cuktech_controlling
     screen_dir_lock:
       name: "Screen Dir Lock"
     screen_saver:
