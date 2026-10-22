@@ -33,6 +33,9 @@ CONF_C3_VOLTAGE = "c3_voltage"
 CONF_A_VOLTAGE = "a_voltage"
 CONF_C1_PERCENT = "c1_percent"
 CONF_C2_PERCENT = "c2_percent"
+CONF_INPUT_POWER = "input_power"
+CONF_INPUT_CURRENT = "input_current"
+CONF_INPUT_VOLTAGE = "input_voltage"
 
 ICON_USB_C_PORT = "mdi:usb-c-port"
 ICON_USB_PORT = "mdi:usb-port"
@@ -144,6 +147,27 @@ CONFIG_SCHEMA = cv.Schema(
             state_class=STATE_CLASS_MEASUREMENT,
             icon=ICON_PERCENT,
         ),
+        cv.Optional(CONF_INPUT_POWER): sensor.sensor_schema(
+            unit_of_measurement=UNIT_WATT,
+            accuracy_decimals=2,
+            device_class=DEVICE_CLASS_POWER,
+            state_class=STATE_CLASS_MEASUREMENT,
+            icon=ICON_FLASH
+        ),
+        cv.Optional(CONF_INPUT_CURRENT): sensor.sensor_schema(
+            unit_of_measurement=UNIT_AMPERE,
+            accuracy_decimals=2,
+            device_class=DEVICE_CLASS_CURRENT,
+            state_class=STATE_CLASS_MEASUREMENT,
+            icon=ICON_CURRENT_DC
+        ),
+        cv.Optional(CONF_INPUT_VOLTAGE): sensor.sensor_schema(
+            unit_of_measurement=UNIT_VOLT,
+            accuracy_decimals=2,
+            device_class=DEVICE_CLASS_VOLTAGE,
+            state_class=STATE_CLASS_MEASUREMENT,
+            icon=ICON_VOLTAGE
+        ),
     }
 )
 
@@ -163,6 +187,9 @@ _SENSORS = {
     CONF_A_VOLTAGE: "set_a_voltage_sensor",
     CONF_C1_PERCENT: "set_c1_percent_sensor",
     CONF_C2_PERCENT: "set_c2_percent_sensor",
+    CONF_INPUT_POWER: "set_input_power_sensor",
+    CONF_INPUT_CURRENT: "set_input_current_sensor",
+    CONF_INPUT_VOLTAGE: "set_input_voltage_sensor",
 }
 
 async def to_code(config):

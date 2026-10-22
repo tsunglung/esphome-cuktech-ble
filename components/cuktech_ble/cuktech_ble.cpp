@@ -77,7 +77,8 @@ static QueueHandle_t g_q_auth_ctrl = NULL, g_q_auth_data = NULL, g_q_cmd_send = 
 static SessionKeys g_keys = {};
 static uint32_t g_send_it = 0;
 static uint8_t g_seq = 1;
-static PortData g_ports[4] = {};
+#define PORTS_SIZE 5
+static PortData g_ports[PORTS_SIZE] = {};
 static uint32_t g_settings[32] = {};
 static bool g_settings_valid[32] = {};
 static portMUX_TYPE _settings_spinlock = portMUX_INITIALIZER_UNLOCKED;
@@ -485,12 +486,15 @@ static void do_parse_prop_change(uint8_t piid, const uint8_t *pt, size_t pt_len)
           g_ports[0].percent = 0;
           g_ports[1].percent = 0;
           if(convert_str(hex, value, 22)) {
+            uint8_t last = PORTS_SIZE - 1;
             g_ports[0].active = value[1] & 0x01;
             g_ports[1].active = (value[1] & 0x02) >> 1;
             if (value[3] != 0xFF)
               g_ports[0].percent = value[3];
             if (value[4] != 0xFF)
               g_ports[1].percent = value[4];
+            g_ports[last].voltage = ((value[5] & 0xFF) << 8 | (value[6] & 0xFF)) / 1000.0;
+            g_ports[last].current = ((value[7] & 0xFF) << 8 | (value[8] & 0xFF)) / 1000.0;
           }
         }
         break;
@@ -523,12 +527,10 @@ static void do_parse_prop_change(uint8_t piid, const uint8_t *pt, size_t pt_len)
             new_pt[14] = ((value[1] & 0xFF) << 8 | (value[2] & 0xFF)) / 100.0;
             new_pt[13] = ((value[3] & 0xFF) << 8 | (value[4] & 0xFF)) / 100.0;
             new_pt[11] = (new_pt[14] > 1) ? 0x1 : 0x0;
-            new_pt[12] = g_ports[0].protocol;
             do_parse_port(1, new_pt, 15);
             new_pt[14] = ((value[5] & 0xFF) << 8 | (value[6] & 0xFF)) / 100.0;
             new_pt[13] = ((value[7] & 0xFF) << 8 | (value[8] & 0xFF)) / 100.0;
             new_pt[11] = (new_pt[14] > 1) ? 0x1 : 0x0;
-            new_pt[12] = g_ports[1].protocol;
             do_parse_port(2, new_pt, 15);
           }
         }
@@ -1649,6 +1651,15 @@ void CuktechBle::publish_portdata_(bool force) {
       if (this->total_power_sensor_) {
         this->total_power_sensor_->publish_state(
           g_ports[0].power + g_ports[1].power);
+      }
+      if (this->input_power_sensor_) {
+        this->input_power_sensor_->publish_state(g_ports[PORTS_SIZE - 1].current * g_ports[PORTS_SIZE - 1].voltage);
+      }
+      if (this->input_current_sensor_) {
+        this->input_current_sensor_->publish_state(g_ports[PORTS_SIZE - 1].current);
+      }
+      if (this->input_voltage_sensor_) {
+        this->input_voltage_sensor_->publish_state(g_ports[PORTS_SIZE - 1].voltage);
       }
 #endif
 #ifdef USE_TEXT_SENSOR

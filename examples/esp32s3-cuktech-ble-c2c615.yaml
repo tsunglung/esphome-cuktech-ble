@@ -187,6 +187,18 @@ sensor:
     c2_percent:
       name: "Port C2 Percent"
       device_id: cuktech_ble_device
+    input_power:
+      name: "Port Input Power"
+      id: input_power
+      device_id: cuktech_ble_device
+    input_current:
+      name: "Port Input Current"
+      id: input_current
+      device_id: cuktech_ble_device
+    input_voltage:
+      name: "Port Input Voltage"
+      id: input_voltage
+      device_id: cuktech_ble_device
 
 switch:
   - platform: cuktech_ble

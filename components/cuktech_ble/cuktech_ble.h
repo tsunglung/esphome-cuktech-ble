@@ -190,6 +190,9 @@ class CuktechBle : public Component {
   SUB_SENSOR(a_voltage)
   SUB_SENSOR(c1_percent)
   SUB_SENSOR(c2_percent)
+  SUB_SENSOR(input_power)
+  SUB_SENSOR(input_current)
+  SUB_SENSOR(input_voltage)
 #endif
 
 #ifdef USE_SWITCH
