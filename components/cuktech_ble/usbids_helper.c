@@ -5,6 +5,7 @@
 static UsbDevStruct UsbList[] = {
 	{ 0x03f0, 0xFFFF, "HP", "Notebook" },
 
+	{ 0x04e8, 0xa06a, "Samsung Mobile", "PowerBank" },
 	{ 0x04e8, 0x681c, "Samsung Mobile", "Galaxy Portal/Spica/S" },
 	{ 0x04e8, 0x681d, "Samsung Mobile", "Galaxy Portal/Spica Android Phone" },
 	{ 0x04e8, 0x6843, "Samsung Mobile", "Kies mode" },
@@ -37,6 +38,7 @@ static UsbDevStruct UsbList[] = {
 	{ 0x05ac, 0x12a8, "Apple", "iPhone" },
 	{ 0x05ac, 0x12ab, "Apple", "iPhone" },
 	{ 0x05ac, 0x13a1, "Apple", "AirPods Charging Case" },
+	{ 0x05ac, 0x1670, "Apple", "MacBook" },
 	{ 0x05ac, 0x7102, "Apple", "iPad Pro" },
 	{ 0x05ac, 0x7108, "Apple", "iPad Air" },
 	{ 0x05ac, 0x7109, "Apple", "iPad Pro" },
@@ -219,6 +221,8 @@ static UsbDevStruct UsbList[] = {
 	{ 0x2a45, 0xFFFF, "Meizu Corp.", "Phone" },
 
 	{ 0x2a70, 0xFFFF, "OnePlus", "Phone" },
+
+	{ 0x2b01, 0xFFFF, "Zimi", "Charger/PowerBank" },
 
 	{ 0x2b4c, 0xFFFF, "Vivo", "Phone" },
 

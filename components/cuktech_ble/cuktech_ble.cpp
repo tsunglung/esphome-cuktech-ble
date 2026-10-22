@@ -486,7 +486,7 @@ static void do_parse_prop_change(uint8_t piid, const uint8_t *pt, size_t pt_len)
           g_ports[1].percent = 0;
           if(convert_str(hex, value, 22)) {
             g_ports[0].active = value[1] & 0x01;
-            g_ports[1].active = value[1] & 0x02;
+            g_ports[1].active = (value[1] & 0x02) >> 1;
             if (value[3] != 0xFF)
               g_ports[0].percent = value[3];
             if (value[4] != 0xFF)
@@ -523,10 +523,12 @@ static void do_parse_prop_change(uint8_t piid, const uint8_t *pt, size_t pt_len)
             new_pt[14] = ((value[1] & 0xFF) << 8 | (value[2] & 0xFF)) / 100.0;
             new_pt[13] = ((value[3] & 0xFF) << 8 | (value[4] & 0xFF)) / 100.0;
             new_pt[11] = (new_pt[14] > 1) ? 0x1 : 0x0;
+            new_pt[12] = g_ports[0].protocol;
             do_parse_port(1, new_pt, 15);
             new_pt[14] = ((value[5] & 0xFF) << 8 | (value[6] & 0xFF)) / 100.0;
             new_pt[13] = ((value[7] & 0xFF) << 8 | (value[8] & 0xFF)) / 100.0;
             new_pt[11] = (new_pt[14] > 1) ? 0x1 : 0x0;
+            new_pt[12] = g_ports[1].protocol;
             do_parse_port(2, new_pt, 15);
           }
         }
@@ -1370,8 +1372,6 @@ static bool handle_protocol_toggle(const char *port, const char *protocol, bool 
 void CuktechBle::setup() {
   g_instance = this;
   g_device_name_cache = this->device_name_;
-  if (this->model_.compare("c2c615") == 0)
-    g_model = CUKTECH_C2C615;
 
   ESP_LOGI(TAG, "Initializing Cuktech BLE bridge (v0.1)");
 
@@ -1820,6 +1820,9 @@ void CuktechBle::set_enable_controlling(bool enable) {
       return;
   }
   g_enabled = enable;
+
+  if (!this->model_.compare("c2c615"))
+    g_model = CUKTECH_C2C615;
 
   ESP_LOGI(TAG, "Controlling switch -> %s", enable ? "ON" : "OFF");
   g_ra = 0;

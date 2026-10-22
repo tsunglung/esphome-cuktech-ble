@@ -253,6 +253,12 @@ text_sensor:
     ble_status:
       name: "BLE Status"
       device_id: cuktech_ble_device
+    c1_protocol:
+      name: "Port C1 Protocol"
+      device_id: cuktech_ble_device
+    c2_protocol:
+      name: "Port C2 Protocol"
+      device_id: cuktech_ble_device
     c1_charged_device:
       name: "Port C1 Charged Device"
       device_id: cuktech_ble_device
