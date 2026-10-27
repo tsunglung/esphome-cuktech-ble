@@ -3,7 +3,7 @@
 #include "usbids.h"
 
 static UsbDevStruct UsbList[] = {
-	{ 0x03f0, 0xFFFF, "HP", "Notebook" },
+	{ 0x03f0, 0xffff, "HP", "Notebook" },
 
 	{ 0x04e8, 0xa06a, "Samsung Mobile", "PowerBank" },
 	{ 0x04e8, 0x681c, "Samsung Mobile", "Galaxy Portal/Spica/S" },
@@ -26,13 +26,13 @@ static UsbDevStruct UsbList[] = {
 	{ 0x04e8, 0x6889, "Samsung Mobile", "GT-B3730 Composite LTE device (Commercial)" },
 	{ 0x04e8, 0x689a, "Samsung Mobile", "LTE Storage Driver [CMC2xx]" },
 	{ 0x04e8, 0x689e, "Samsung Mobile", "GT-S5670 [Galaxy Fit]" },
-	{ 0x04e8, 0xFFFF, "Samsung Mobile", "Phone" },
+	{ 0x04e8, 0xffff, "Samsung Mobile", "Phone" },
 
-	{ 0x045e, 0xFFFF, "Microsoft", "Notebook" },
+	{ 0x045e, 0xffff, "Microsoft", "Notebook" },
 
 	{ 0x057e, 0x2000, "Nintendo", "Switch" },
 	{ 0x057e, 0x2060, "Nintendo", "Switch 2" },
-	{ 0x057e, 0xFFFF, "Nintendo", "Device" },
+	{ 0x057e, 0xffff, "Nintendo", "Device" },
 
 	{ 0x05ac, 0x1290, "Apple", "iPhone" },
 	{ 0x05ac, 0x12a8, "Apple", "iPhone" },
@@ -98,7 +98,7 @@ static UsbDevStruct UsbList[] = {
 	{ 0x05ac, 0x751b, "Apple", "iPhone 17" },
 	{ 0x05ac, 0x751c, "Apple", "iPhone 16e" },
 	{ 0x05ac, 0x751f, "Apple", "iPhone 18 Pro Max" },
-	{ 0x05ac, 0xFFFF, "Apple", "iPhone" },
+	{ 0x05ac, 0xffff, "Apple", "iPhone" },
 
 	{ 0x0b05, 0x550f, "ASUS", "Fonepad 7" },
 	{ 0x0b05, 0x6101, "ASUS", "Cable Modem" },
@@ -109,12 +109,12 @@ static UsbDevStruct UsbList[] = {
 	{ 0x0b05, 0x7775, "ASUS", "Zenfone (Debug, RNDIS mode)" },
 	{ 0x0b05, 0x7776, "ASUS", "Zenfone (PTP mode)" },
 	{ 0x0b05, 0x7777, "ASUS", "Zenfone (Debug, PTP mode)" },
-	{ 0x0b05, 0xFFFF, "ASUS", "Phone" },
+	{ 0x0b05, 0xffff, "ASUS", "Phone" },
 
 	{ 0x0bb4, 0x0fff, "HTC", "Fastboot Bootloader" },
 	{ 0x0bb4, 0x2008, "HTC", "Phone via MTP" },
 	{ 0x0bb4, 0x200b, "HTC", "Phone via PTP" },
-	{ 0x0bb4, 0xFFFF, "HTC", "Phone" },
+	{ 0x0bb4, 0xffff, "HTC", "Phone" },
 
 	{ 0x0fce, 0x01ba, "Sony", "D6603 [Xperia Z3]" },
 	{ 0x0fce, 0x01bb, "Sony", "D5803 [Xperia Z3 Compact] (MTP mode)" },
@@ -141,14 +141,14 @@ static UsbDevStruct UsbList[] = {
 	{ 0x0fce, 0xe161, "Sony", "Xperia Ray" },
 	{ 0x0fce, 0xe166, "Sony", "Xperia Mini Pro" },
 	{ 0x0fce, 0xe167, "Sony", "XPERIA mini" },
-	{ 0x0fce, 0xFFFF, "Sony", "Phone" },
+	{ 0x0fce, 0xffff, "Sony", "Phone" },
 
 	{ 0x1004, 0x6356, "LG Mobile", "Optimus Android Phone [Virtual CD mode]" },
 	{ 0x1004, 0x91c8, "LG Mobile", "P880 / USB tethering" },
-	{ 0x1004, 0xFFFF, "LG Mobile", "PHone" },
+	{ 0x1004, 0xffff, "LG Mobile", "PHone" },
 
 	{ 0x12d1, 0x380b, "Huawei", "WiMAX USB modem(s)" },
-	{ 0x12d1, 0xFFFF, "Huawei", "Phone" },
+	{ 0x12d1, 0xffff, "Huawei", "Phone" },
 
 	{ 0x17ef, 0x7423, "Lenovo", "IdeaPad A1 Tablet" },
 	{ 0x17ef, 0x7435, "Lenovo", "A789 (Mass Storage mode, with debug)" },
@@ -158,7 +158,7 @@ static UsbDevStruct UsbList[] = {
 	{ 0x17ef, 0x749a, "Lenovo", "A789 (PTP mode)" },
 	{ 0x17ef, 0x749b, "Lenovo", "A789 (PTP mode, with debug)" },
 	{ 0x17ef, 0xa37f, "Lenovo", "ThinkPad" },
-	{ 0x17ef, 0xFFFF, "Lenovo", "Phone" },
+	{ 0x17ef, 0xffff, "Lenovo", "Phone" },
 
 	{ 0x18d1, 0x2d00, "Google", "Accessory mode" },
 	{ 0x18d1, 0x2d01, "Google", "Accessory mode with ADB support" },
@@ -174,25 +174,25 @@ static UsbDevStruct UsbList[] = {
 	{ 0x18d1, 0xd002, "Google", "Nexus Device (debug)" },
 	{ 0x18d1, 0xd109, "Google", "LG G2x MTP" },
 	{ 0x18d1, 0xd10a, "Google", "LG G2x MTP (debug)" },
-	{ 0x18d1, 0xFFFF, "Google", "Phone" },
+	{ 0x18d1, 0xffff, "Google", "Phone" },
 
 	{ 0x19d2, 0x1008, "ZTE Mobile", "K3570-Z" },
 	{ 0x19d2, 0x1010, "ZTE Mobile", "K3571-Z" },
 	{ 0x19d2, 0x1217, "ZTE Mobile", "MF652" },
 	{ 0x19d2, 0x1218, "ZTE Mobile", "MF652" },
 	{ 0x19d2, 0x2000, "ZTE Mobile", "MF627/MF628/MF628+/MF636+ HSDPA/HSUPA" },
-	{ 0x19d2, 0xFFFF, "ZTE Mobile", "Phone" },
+	{ 0x19d2, 0xffff, "ZTE Mobile", "Phone" },
 
-	{ 0x1d68, 0xFFFF, "Linux Foundation", "Notebook" },
+	{ 0x1d68, 0xffff, "Linux Foundation", "Notebook" },
 
 	{ 0x2109, 0x0103, "VIA", "USB Hub" },
-	{ 0x2109, 0xFFFF, "VIA", "Notebook" },
+	{ 0x2109, 0xffff, "VIA", "Notebook" },
 
 	{ 0x22b8, 0x6415, "Motorola", "ROKR Z6 (MTP mode)" },
 	{ 0x22b8, 0x6604, "Motorola", "Washington CDMA Phone" },
 	{ 0x22b8, 0x6631, "Motorola", "CDC Modem" },
 	{ 0x22b8, 0x7001, "Motorola", "Q Smartphone" },
-	{ 0x22b8, 0xFFFF, "Motorola", "Phone" },
+	{ 0x22b8, 0xffff, "Motorola", "Phone" },
 
 	{ 0x291a, 0x110a, "Anker", "Anker Prime Power Bank 26K" },
 	{ 0x291a, 0x110b, "Anker", "Anker Prime Power Bank 20K" },
@@ -200,15 +200,15 @@ static UsbDevStruct UsbList[] = {
 	{ 0x291a, 0x1669, "Anker", "Anker Power Bank 10K" },
 	{ 0x291a, 0x1340, "Anker", "Anker Power Bank 27K" },
 	{ 0x291a, 0x25f7, "Anker", "Anker Wireless Charger 35W" },
-	{ 0x291a, 0xFFFF, "Anker", "Power Bank" },
+	{ 0x291a, 0xffff, "Anker", "Power Bank" },
 
-	{ 0x29d9, 0xFFFF, "OPPO", "Phone" },
+	{ 0x29d9, 0xffff, "OPPO", "Phone" },
 
 	{ 0x29cf, 0x6375, "POCO", "X4 GT" },
-	{ 0x29cf, 0xFFFF, "POCO", "Phone" },
+	{ 0x29cf, 0xffff, "POCO", "Phone" },
 
 	{ 0x2717, 0x209e, "Xiaomi", "Phone (MTP)" },
-	{ 0x2717, 0xFFFF, "Xiaomi", "Phone" },
+	{ 0x2717, 0xffff, "Xiaomi", "Phone" },
 
 	{ 0x2a45, 0x0001, "Meizu Corp.", "MX Phone (BICR)" },
 	{ 0x2a45, 0x0c02, "Meizu Corp.", "MX Phone (MTP & ADB)" },
@@ -218,17 +218,18 @@ static UsbDevStruct UsbList[] = {
 	{ 0x2a45, 0x200b, "Meizu Corp.", "MX Phone (PTP)" },
 	{ 0x2a45, 0x200c, "Meizu Corp.", "MX Phone (PTP & ADB)" },
 	{ 0x2a45, 0x2012, "Meizu Corp.", "MX Phone (MTP & ACM)" },
-	{ 0x2a45, 0xFFFF, "Meizu Corp.", "Phone" },
+	{ 0x2a45, 0xffff, "Meizu Corp.", "Phone" },
 
-	{ 0x2a70, 0xFFFF, "OnePlus", "Phone" },
+	{ 0x2a70, 0xffff, "OnePlus", "Phone" },
 
-	{ 0x2b01, 0xFFFF, "Zimi", "Charger/PowerBank" },
+	{ 0x2b01, 0x0000, "Zimi", "Charger/PowerBank" },
+	{ 0x2b01, 0xffff, "Zimi", "Device" },
 
-	{ 0x2b4c, 0xFFFF, "Vivo", "Phone" },
+	{ 0x2b4c, 0xffff, "Vivo", "Phone" },
 
-	{ 0x413c, 0xFFFF, "Dell", "Notebook" },
+	{ 0x413c, 0xffff, "Dell", "Notebook" },
 
-	{ 0x8087, 0xFFFF, "Intel", "Notebook" },
+	{ 0x8087, 0xffff, "Intel", "Notebook" },
 };
 
 //05AC751F00C8 iphone 18 pro max
