@@ -57,8 +57,8 @@ async def to_code(config):
         cg.add(var.set_model(config[CONF_MODEL].lower()))
         if "njcuk.fitting.ad1204" in config[CONF_MODEL].lower():
             cg.add(var.set_model("ad1204"))
-        if "njcuk.fitting.c2c615" in config[CONF_MODEL].lower():
-            cg.add(var.set_model("c2c615"))
+        if "njcuk.fitting.c2c615u" in config[CONF_MODEL].lower():
+            cg.add(var.set_model("c2c615u"))
     else:
         cg.add(var.set_model("ad1204"))
 

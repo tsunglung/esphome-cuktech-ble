@@ -393,7 +393,7 @@ static void do_set_state(BLEState s) {
   g_state = s;
   ESP_LOGV(TAG, "State: %d -> %d", (int)old, (int)s);
   if (g_state == BLE_READY) {
-      if (g_model == CUKTECH_C2C615) {
+      if (g_model == CUKTECH_C2C615U) {
         static const uint8_t INIT_PIIDS[] = {1, 2, 3};
         for (int i = 0; i < sizeof(INIT_PIIDS); i++) {
             BleCommand c = {CMD_GET, SIID_CHARGER, INIT_PIIDS[i], 0, 0};
@@ -733,7 +733,7 @@ static void do_process_decrypted(const uint8_t *pt, size_t pt_len) {
   if (pt_len >= 12 && pt[4] == PROP_CHANGED) {
     if (g_model == CUKTECH_AD1204 && pt[7] >= 1 && pt[7] <= 4)
       do_parse_port(pt[7], pt, pt_len);   // port push
-    else if (g_model == CUKTECH_C2C615 && (pt[7] == 5 || pt[7] == 9 || pt[7] == 12))
+    else if (g_model == CUKTECH_C2C615U && (pt[7] == 5 || pt[7] == 9 || pt[7] == 12))
       do_parse_prop_change(pt[7], pt, pt_len);
   } else {
     do_pending_match(pt, pt_len);        // command response
@@ -863,7 +863,7 @@ static bool do_recv_cmd(uint8_t *out, size_t *ol, uint32_t ms) {
                 if (g_model == CUKTECH_AD1204 && tmp[7] >= 1 && tmp[7] <= 4) {
                   on_wru_nr(g_cmd_recv_handle, (uint8_t[]){0,0,3,0}, 4);
                   do_parse_port(tmp[7], tmp, tlen); continue;
-                } else if (g_model == CUKTECH_C2C615 && (tmp[7] == 5 || tmp[7] == 9 || tmp[7] == 12)) {
+                } else if (g_model == CUKTECH_C2C615U && (tmp[7] == 5 || tmp[7] == 9 || tmp[7] == 12)) {
                   on_wru_nr(g_cmd_recv_handle, (uint8_t[]){0,0,3,0}, 4);
                   do_parse_prop_change(tmp[7], tmp, tlen);
                 }
@@ -1428,7 +1428,7 @@ void CuktechBle::loop() {
   // Slow poll (90s): scene mode, screen time, countdown, trickle
   if ((g_state == BLE_READY) && (now - this->last_cd_fetch_slow_ >= 90000)) {
       this->last_cd_fetch_slow_ = now;
-      if (g_model == CUKTECH_C2C615) {
+      if (g_model == CUKTECH_C2C615U) {
       } else {
         static const uint8_t SLOW_PIIDS[] = {5, 6, 9, 10, 11, 12, 13, 15, 19, 20};
         for (int i = 0; i < sizeof(SLOW_PIIDS); i++) {
@@ -1440,7 +1440,7 @@ void CuktechBle::loop() {
   // Fast poll (20s): port control (16) and protocol extends (21) change via SET
   if ((g_state == BLE_READY) && (now - this->last_cd_fetch_fast_ >= 10000)) {
       this->last_cd_fetch_fast_ = now;
-      if (g_model == CUKTECH_C2C615) {
+      if (g_model == CUKTECH_C2C615U) {
         static const uint8_t SLOW_PIIDS[] = {1, 2, 3};
         for (int i = 0; i < sizeof(SLOW_PIIDS); i++) {
             BleCommand c = {CMD_GET, SIID_CHARGER, SLOW_PIIDS[i], 0, 0};
@@ -1469,7 +1469,7 @@ void CuktechBle::loop() {
 
 void CuktechBle::publish_settings_(bool force) {
   if (g_connected || force) {
-    if (g_model == CUKTECH_C2C615) {
+    if (g_model == CUKTECH_C2C615U) {
       if (this->screen_rotation_interval_select_) {
         uint8_t value = 0;
         if (g_settings[3] == 0)
@@ -1524,7 +1524,7 @@ void CuktechBle::publish_settings_(bool force) {
       }
 #endif
 #ifdef USE_SWITCH
-      if (g_model == CUKTECH_C2C615) {
+      if (g_model == CUKTECH_C2C615U) {
         if (this->c1_ufcs_switch_) {
           this->c1_ufcs_switch_->publish_state(g_settings[21] & (0x1 << 2));
         }
@@ -1640,7 +1640,7 @@ void CuktechBle::publish_portdata_(bool force) {
       this->c2_voltage_sensor_->publish_state(g_ports[1].voltage);
     }
 #endif
-    if (g_model == CUKTECH_C2C615) {
+    if (g_model == CUKTECH_C2C615U) {
 #ifdef USE_SENSOR
       if (this->c1_percent_sensor_) {
         this->c1_percent_sensor_->publish_state(g_ports[0].percent);
@@ -1832,8 +1832,8 @@ void CuktechBle::set_enable_controlling(bool enable) {
   }
   g_enabled = enable;
 
-  if (!this->model_.compare("c2c615"))
-    g_model = CUKTECH_C2C615;
+  if (!this->model_.compare("c2c615u"))
+    g_model = CUKTECH_C2C615U;
 
   ESP_LOGI(TAG, "Controlling switch -> %s", enable ? "ON" : "OFF");
   g_ra = 0;
@@ -1965,17 +1965,17 @@ void CuktechBle::set_a_always_on(bool enable) {
   handle_setting_set(15, enable? 1: 0);
 }
 
-// c2c615
+// c2c615u
 void CuktechBle::set_c1_optimize(bool enable) {
   handle_setting_set(15, enable? g_settings[15] | 0x01: g_settings[15] & ~0x01);
 }
 
-// c2c615
+// c2c615u
 void CuktechBle::set_c2_optimize(bool enable) {
   handle_setting_set(15, enable? g_settings[15] | 0x02: g_settings[15] & ~0x02);
 }
 
-// c2c615
+// c2c615u
 void CuktechBle::set_screen_onoff(bool enable) {
   handle_setting_set(1, enable? 1: 0);
 }
@@ -1996,7 +1996,7 @@ void CuktechBle::set_a_countdown(float value) {
   handle_setting_set(12, (uint16_t)value);
 }
 
-// c2c615
+// c2c615u
 void CuktechBle::set_brightness(float value) {
   handle_setting_set(2, (uint16_t)value);
 }
@@ -2016,7 +2016,7 @@ void CuktechBle::set_screen_saver_timeout(const char *state) {
   handle_setting_set(6, (uint16_t)value + 1);
 }
 
-// c2c615
+// c2c615u
 void CuktechBle::set_screen_rotation_interval(const char *state) {
   int value = 0;
   if (!strcmp(state, "10 s"))

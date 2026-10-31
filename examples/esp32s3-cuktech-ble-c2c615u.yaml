@@ -88,7 +88,7 @@ web_server:
 cuktech_ble:
   id: cuktech_ble_bridge
   device_name: "ESPHome Cuktech BLE Bridge"
-  model: "C2C615"
+  model: "C2C615U"
 
 binary_sensor:
   - platform: status
@@ -129,11 +129,8 @@ light:
 
 number:
   - platform: cuktech_ble
-    c1_countdown:
-      name: "Port C1 Countdown"
-      device_id: cuktech_ble_device
-    c2_countdown:
-      name: "Port C2 Countdown"
+    brightness:
+      name: "Screen Brightness"
       device_id: cuktech_ble_device
 
 select:

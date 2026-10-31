@@ -32,7 +32,7 @@
 
 typedef enum {
     CUKTECH_AD1204,
-    CUKTECH_C2C615
+    CUKTECH_C2C615U
 } CuktechModel;
 
 typedef enum {

@@ -2,7 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-ESPHome external component that turns an ESP32 into a Bluetooth bridge for CUKTECH GaN Charger 10 Ultra (njcuk.fitting.ad1204) or CUKTECH 2-in-1 Digital Display Smart Charging Cable 10 Ultra (njcuk.fitting.c2c615).
+ESPHome external component that turns an ESP32 into a Bluetooth bridge for CUKTECH GaN Charger 10 Ultra (njcuk.fitting.ad1204) or CUKTECH 2-in-1 Digital Display Smart Charging Cable 10 Ultra (njcuk.fitting.c2c615u).
 
 
 Porting from: https://github.com/kairui1108/cuktech-ble-ha
@@ -44,7 +44,7 @@ Then fill the BLE mac/token/key in the text of ESPHome then turn on the switch "
 
 
 ## Notice
- Only power, voltage, current sensor support of CUKTECH 2-in-1 Digital Display Smart Charging Cable 10 Ultra (njcuk.fitting.c2c615).
+ Only power, voltage, current sensor support of CUKTECH 2-in-1 Digital Display Smart Charging Cable 10 Ultra (njcuk.fitting.c2c615u).
 
 ## Thanks
 
