@@ -5,6 +5,8 @@
 static UsbDevStruct UsbList[] = {
 	{ 0x03f0, 0xffff, "HP", "Notebook" },
 
+	{ 0x0489, 0xa06a, "Foxconn", "Device" },
+
 	{ 0x04e8, 0xa06a, "Samsung Mobile", "PowerBank" },
 	{ 0x04e8, 0x681c, "Samsung Mobile", "Galaxy Portal/Spica/S" },
 	{ 0x04e8, 0x681d, "Samsung Mobile", "Galaxy Portal/Spica Android Phone" },
@@ -34,71 +36,87 @@ static UsbDevStruct UsbList[] = {
 	{ 0x057e, 0x2060, "Nintendo", "Switch 2" },
 	{ 0x057e, 0xffff, "Nintendo", "Device" },
 
+	{ 0x05ac, 0x0159, "Apple", "iPhone 17e" },
+	{ 0x05ac, 0x0707, "Apple", "iPad Air" },
 	{ 0x05ac, 0x1290, "Apple", "iPhone" },
 	{ 0x05ac, 0x12a8, "Apple", "iPhone" },
 	{ 0x05ac, 0x12ab, "Apple", "iPhone" },
 	{ 0x05ac, 0x13a1, "Apple", "AirPods Charging Case" },
 	{ 0x05ac, 0x1670, "Apple", "MacBook" },
 	{ 0x05ac, 0x7102, "Apple", "iPad Pro" },
-	{ 0x05ac, 0x7108, "Apple", "iPad Air" },
+	{ 0x05ac, 0x7108, "Apple", "iPad Air 4" },
 	{ 0x05ac, 0x7109, "Apple", "iPad Pro" },
-	{ 0x05ac, 0x710c, "Apple", "iPad mini" },
-	{ 0x05ac, 0x710d, "Apple", "iPad Air" },
-	{ 0x05ac, 0x710e, "Apple", "iPad Pro" },
+	{ 0x05ac, 0x710c, "Apple", "iPad mini 6" },
+	{ 0x05ac, 0x710d, "Apple", "iPad Air 5" },
+	{ 0x05ac, 0x710e, "Apple", "iPad Pro 11" },
 	{ 0x05ac, 0x7111, "Apple", "iPad" },
-	{ 0x05ac, 0x7112, "Apple", "iPad" },
+	{ 0x05ac, 0x7112, "Apple", "iPad 10" },
 	{ 0x05ac, 0x7114, "Apple", "iPad Air" },
 	{ 0x05ac, 0x7115, "Apple", "iPad Air" },
-	{ 0x05ac, 0x7116, "Apple", "iPad mini" },
+	{ 0x05ac, 0x7116, "Apple", "iPad mini A17 Pro" },
 	{ 0x05ac, 0x7117, "Apple", "iPad Pro" },
-	{ 0x05ac, 0x711c, "Apple", "iPad Air" },
+	{ 0x05ac, 0x711c, "Apple", "iPad Air 11 M2" },
 	{ 0x05ac, 0x711d, "Apple", "iPad Air" },
 	{ 0x05ac, 0x711e, "Apple", "iPad Pro" },
-	{ 0x05ac, 0x711b, "Apple", "iPad" },
+	{ 0x05ac, 0x711b, "Apple", "iPad A16" },
 	{ 0x05ac, 0x7302, "Apple", "MacBook Air" },
 	{ 0x05ac, 0x7304, "Apple", "MacBook Pro" },
 	{ 0x05ac, 0x7306, "Apple", "MacBook Pro" },
 	{ 0x05ac, 0x7307, "Apple", "MacBook Air" },
 	{ 0x05ac, 0x7308, "Apple", "MacBook Pro" },
-	{ 0x05ac, 0x7309, "Apple", "MacBook Pro" },
+	{ 0x05ac, 0x7309, "Apple", "MacBook Pro 16" },
 	{ 0x05ac, 0x730b, "Apple", "MacBook Air" },
 	{ 0x05ac, 0x730c, "Apple", "MacBook Pro" },
 	{ 0x05ac, 0x730d, "Apple", "MacBook Pro" },
 	{ 0x05ac, 0x730e, "Apple", "MacBook Pro" },
 	{ 0x05ac, 0x7310, "Apple", "MacBook Air" },
+	{ 0x05ac, 0x7311, "Apple", "MacBook Pro 14" },
 	{ 0x05ac, 0x7312, "Apple", "MacBook Pro" },
 	{ 0x05ac, 0x7313, "Apple", "MacBook Pro" },
 	{ 0x05ac, 0x7314, "Apple", "MacBook Air" },
 	{ 0x05ac, 0x7318, "Apple", "MacBook Air" },
-	{ 0x05ac, 0x7315, "Apple", "MacBook Pro" },
-	{ 0x05ac, 0x7319, "Apple", "MacBook Pro" },
-	{ 0x05ac, 0x731a, "Apple", "MacBook Pro" },
+	{ 0x05ac, 0x7315, "Apple", "MacBook Pro 16" },
+	{ 0x05ac, 0x7319, "Apple", "MacBook Pro 14" },
+	{ 0x05ac, 0x731a, "Apple", "MacBook Pro 14/16" },
 	{ 0x05ac, 0x731b, "Apple", "MacBook Air" },
 	{ 0x05ac, 0x731c, "Apple", "MacBook Air" },
+	{ 0x05ac, 0x731d, "Apple", "MacBook Pro 14" },
+	{ 0x05ac, 0x731e, "Apple", "MacBook Pro 16" },
+	{ 0x05ac, 0x7321, "Apple", "MacBook Neo" },
+	{ 0x05ac, 0x7323, "Apple", "MacBook Air 13" },
+	{ 0x05ac, 0x7503, "Apple", "iPhone 12 Mini" },
 	{ 0x05ac, 0x7504, "Apple", "iPhone 12" },
 	{ 0x05ac, 0x7505, "Apple", "iPhone 12 Pro Max" },
 	{ 0x05ac, 0x7506, "Apple", "iPhone 12 Pro" },
-	{ 0x05ac, 0x7507, "Apple", "iPhone 13" },
-	{ 0x05ac, 0x7509, "Apple", "iPhone 13 Pro Max" },
-	{ 0x05ac, 0x750a, "Apple", "iPhone 13 Pro" },
+	{ 0x05ac, 0x7507, "Apple", "iPhone 13 Mini" },
+	{ 0x05ac, 0x7508, "Apple", "iPhone 13" },
+	{ 0x05ac, 0x7509, "Apple", "iPhone 13 Pro" },
+	{ 0x05ac, 0x750a, "Apple", "iPhone 13 Pro Max" },
 	{ 0x05ac, 0x750b, "Apple", "iPhone SE 3" },
-	{ 0x05ac, 0x750d, "Apple", "iPhone 14" },
-	{ 0x05ac, 0x750e, "Apple", "iPhone 14 Pro Max" },
-	{ 0x05ac, 0x750f, "Apple", "iPhone 14 Pro" },
+	{ 0x05ac, 0x750d, "Apple", "iPhone 14 Plus" },
+	{ 0x05ac, 0x750e, "Apple", "iPhone 14 Pro" },
+	{ 0x05ac, 0x750f, "Apple", "iPhone 14 Pro Max" },
 	{ 0x05ac, 0x7510, "Apple", "iPhone 15" },
 	{ 0x05ac, 0x7511, "Apple", "iPhone 15 Plus" },
+	{ 0x05ac, 0x7512, "Apple", "iPhone 15 Pro" },
 	{ 0x05ac, 0x7513, "Apple", "iPhone 15 Pro Max" },
-	{ 0x05ac, 0x7514, "Apple", "iPhone 15 Pro" },
+	{ 0x05ac, 0x7514, "Apple", "iPhone 16" },
 	{ 0x05ac, 0x7515, "Apple", "iPhone 16 Pro" },
 	{ 0x05ac, 0x7516, "Apple", "iPhone 16 Plus" },
 	{ 0x05ac, 0x7517, "Apple", "iPhone 16 Pro Max" },
-	{ 0x05ac, 0x7518, "Apple", "iPhone 16 Pro" },
+	{ 0x05ac, 0x7518, "Apple", "iPhone Air" },
 	{ 0x05ac, 0x7519, "Apple", "iPhone 17 Pro Max" },
 	{ 0x05ac, 0x751a, "Apple", "iPhone 17 Pro" },
 	{ 0x05ac, 0x751b, "Apple", "iPhone 17" },
 	{ 0x05ac, 0x751c, "Apple", "iPhone 16e" },
+	{ 0x05ac, 0x751d, "Apple", "iPhone 18" },
+	{ 0x05ac, 0x751e, "Apple", "iPhone 18 Pro" },
 	{ 0x05ac, 0x751f, "Apple", "iPhone 18 Pro Max" },
-	{ 0x05ac, 0xffff, "Apple", "iPhone" },
+	{ 0x05ac, 0x7522, "Apple", "iPhone Duo" },
+	{ 0x05ac, 0xffff, "Apple", "Device" },
+
+	{ 0x05c6, 0x0938, "Qualcomm", "ASUS Zenbook A14" },
+	{ 0x05c6, 0xffff, "Qualcomm", "Device" },
 
 	{ 0x0b05, 0x550f, "ASUS", "Fonepad 7" },
 	{ 0x0b05, 0x6101, "ASUS", "Cable Modem" },
@@ -194,6 +212,8 @@ static UsbDevStruct UsbList[] = {
 	{ 0x22b8, 0x7001, "Motorola", "Q Smartphone" },
 	{ 0x22b8, 0xffff, "Motorola", "Phone" },
 
+	{ 0x22d9, 0xffff, "OPPO", "Phone" },
+
 	{ 0x291a, 0x110a, "Anker", "Anker Prime Power Bank 26K" },
 	{ 0x291a, 0x110b, "Anker", "Anker Prime Power Bank 20K" },
 	{ 0x291a, 0x1665, "Anker", "Anker Power Bank 5K" },
@@ -201,8 +221,6 @@ static UsbDevStruct UsbList[] = {
 	{ 0x291a, 0x1340, "Anker", "Anker Power Bank 27K" },
 	{ 0x291a, 0x25f7, "Anker", "Anker Wireless Charger 35W" },
 	{ 0x291a, 0xffff, "Anker", "Power Bank" },
-
-	{ 0x29d9, 0xffff, "OPPO", "Phone" },
 
 	{ 0x29cf, 0x6375, "POCO", "X4 GT" },
 	{ 0x29cf, 0xffff, "POCO", "Phone" },
@@ -225,19 +243,24 @@ static UsbDevStruct UsbList[] = {
 	{ 0x2b01, 0x0000, "Zimi", "Charger/PowerBank" },
 	{ 0x2b01, 0xffff, "Zimi", "Device" },
 
+	{ 0x2b16, 0xffff, "Ugreen", "Device" },
+
 	{ 0x2b4c, 0xffff, "Vivo", "Phone" },
+
+	{ 0x2b89, 0xffff, "Baseus", "Device" },
+
+	{ 0x2d95, 0xffff, "Vivo", "Phone" },
+
+	{ 0x2e87, 0xffff, "Cuktech", "Device" },
 
 	{ 0x413c, 0xffff, "Dell", "Notebook" },
 
-	{ 0x8087, 0xffff, "Intel", "Notebook" },
-};
+	{ 0x5fc9, 0xffff, "UFCS", "Device" },
 
-//05AC751F00C8 iphone 18 pro max
-//05AC751900B4 iphone 17 pro max
-//05AC751700B4 iPhone 16 Pro Max
-//05AC73060244 MacBook Pro M1
-//05AC731203D4 MacBook Pro M2
-//05AC731902D0 MacBook Pro M4
+	{ 0x8086, 0xffff, "Intel", "Notebook" },
+
+	{ 0x8087, 0xffff, "Intel/TB", "Notebook" },
+};
 
 uint16_t UsbListLength = sizeof(UsbList) / sizeof(UsbList[0]);
 
